@@ -1,4 +1,4 @@
--- Grammar for C++	Salvatore Tomaselli
+-- Grammar for Javalette	Salvo 'LtWorf' Tomaselli
 entrypoints Program ;
 
 Program.	Program			::=	[Declaration];

@@ -1,5 +1,5 @@
 #!/bin/bash
 dir=`dirname $0`
 
-java -jar $dir/jython.jar $dir/typechecker.py $@
+java -jar $dir/jython.jar $dir/worfcc.py $@
 

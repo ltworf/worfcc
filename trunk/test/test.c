@@ -1,5 +1,6 @@
 int main () {
-    void a=printString("ciao");
+    printString("ciao");
+    int a,b,d;
     return 0;
 }
 
