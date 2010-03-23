@@ -1,0 +1,297 @@
+#!/usr/bin/env jython
+# -*- coding: utf-8 -*-
+# Copyright (C) 2010  Salvo "LtWorf" Tomaselli
+# 
+# Typechecker
+# Typechecker is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+# author Salvo "LtWorf" Tomaselli <tiposchi@tiscali.it>
+
+
+import java.io             
+import cpp          #Importing the cpp classes
+import context      #Package that provides the stack of contexts
+import sys
+import java_cup
+import err
+
+def checkfile(filename):
+    '''Typechecking for a file
+    filename            file to typecheck
+    
+    This function does not return in case of failure'''
+    gcont=context.GeneralContext("Declaration")      #Initializing the general context, will automatically have an empty context
+    builtin(gcont)  #Adds built-in definitions
+    try:
+        lexer =  cpp.Yylex(java.io.FileReader(filename));
+        parser=cpp.parser(lexer)
+        res=parser.parse()
+        prog=res.value
+    except:
+        print "SYNTAX ERROR"
+        print "At line ",lexer.line_num()
+        print "near ", lexer.buff()
+        raise Exception("SYNTAX ERROR")
+    
+    #Adding all the functions to the context, because their definition doesn't have to be before their 1st call
+    for i in prog.listdeclaration_:
+        gcont.put(i.cident_,i)
+
+    #Typechecking the functions
+    for i in prog.listdeclaration_:
+        check_fnct(i,gcont)
+    
+    #Special check for the main function
+    main=gcont.get("main")
+    if len(main.listargument_)!=0 or (not isinstance( main.type_,cpp.Absyn.Typeint)) :
+        err.error("Main function must be:\nint main();",gcont)
+    
+    #Will return the tree and the context containing only the functions
+    return (prog,gcont)
+
+def check_fnct(f,contx):
+    '''Checks a function
+    f               function
+    contx           context
+    
+    This function will add the arguments to a new context and call chk_block with the same context.
+    
+    A return statement is mandatory for non-void functions.
+    '''
+    contx.push(f.cident_)    #Adding a new context for the function
+    
+    #Adding the arguments to the current context
+    for i in f.listargument_:
+        contx.put(i.cident_,i.type_)
+
+    ret=chk_block(f.liststatement_,contx,False,f.type_) #Checking the statements in a block that has the same context
+    
+    
+    
+    if not isinstance(f.type_,cpp.Absyn.Typevoid) and not ret: #Raise exception for missing return statement
+        err.error("Missing return statement in non void function "+f.cident_,contx)
+    
+    
+    contx.pop()     #Removing the context
+
+def chk_block(statements,contx,new_contx,return_):
+    '''Checks a block. A block can be a function.
+    statements          list of the statements in the block (order is important)
+    contx               context
+    new_contx           tells if a new contexthas to be created (inner block) or the same has to be used
+    return_             tells the return type that is expected by the function
+    
+    It will return a boolean value saying if the block has a return statement or not.
+    An if statement having a return statement in both if and else branches is considered to have a return statement, otherwise not.
+    
+    It is not allowed to have statements after a return statement (unreacheable ccode)
+    '''
+    has_return=False
+    if new_contx:
+        contx.push()
+    
+    #Checking the statements
+    for index in range(len(statements)):
+        i=statements[index] #I use this to know if there are statements after the return
+
+        if isinstance(i,cpp.Absyn.Return):    #Return with value
+            has_return=True
+            
+            inf=infer(i.expr_,contx)
+            if inf.__class__!=return_.__class__: #Return with value, checking its type
+                err.printabletype(return_)
+                err.error ("Type mismatch in return, expected "+err.printabletype(return_)+ " got "+ err.printabletype(inf),contx)
+        elif isinstance(i,cpp.Absyn.VoidReturn):
+            has_return=True
+            
+            if not isinstance(return_,cpp.Absyn.Typevoid):
+                err.error("Must return an expression",contx)
+            
+        elif isinstance(i,cpp.Absyn.LocalVars):   #Var declaration (multiple vars)
+            print dir(i)
+            for j in i.listvitem_:
+                if isinstance(j,cpp.Absyn.VarNA): #Declaration without assignment
+                    contx.put(j.cident_,i.type_)    #Putting the new vars into the context
+                else: #Declaration and assignment
+                    if infer(j.expr_,contx).__class__==i.type_.__class__:
+                        contx.put(j.cident_,i.type_)
+        elif isinstance(i,cpp.Absyn.Block):     #Block
+            #Checking the block creating a new context
+            has_return=chk_block(i.liststatement_,contx,True,return_);
+        elif isinstance(i,cpp.Absyn.Expression):    #Expression
+            infer(i.expr_,contx)
+        elif isinstance(i,cpp.Absyn.While):    #While loop
+            inf = infer(i.expr_,contx)
+            if not isinstance(inf,cpp.Absyn.Typebool):
+                err.error("Condition in while must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
+            #Check while's statement in the same context, as a list of one item.
+            # If it is a block, another recoursive call will create the new context
+            chk_block([i.statement_,],contx,False,return_)#Check the instructions
+        elif isinstance(i,cpp.Absyn.If):#If without else
+            inf = infer(i.expr_,contx)
+            if not isinstance(inf,cpp.Absyn.Typebool):
+                err.error("Condition in if must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
+            chk_block([i.statement_,],contx,False,return_)#Check the instructions
+        elif isinstance(i,cpp.Absyn.IfElse):    #if else
+            inf = infer(i.expr_,contx)
+            if not isinstance(inf,cpp.Absyn.Typebool):
+                err.error("Condition in if must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
+            #has_return will be true if both of the branches contains a return
+            has_return=chk_block([i.statement_1,],contx,False,return_) #Check the instructions in the if
+            has_return=has_return and chk_block([i.statement_2,],contx,False,return_) #Check the instructions in the else
+
+        #Disallow statements after the return
+        if has_return and index != len(statements)-1: 
+            err.error("Unreachable code after return",contx)
+            
+    if new_contx:
+        contx.pop()
+    return has_return
+
+def infer(expr,contx):
+    '''Returns the type of an expression
+    expr        Expression to infer
+    contx       context'''
+    
+    #Literals
+    if isinstance(expr,cpp.Absyn.Eint):
+        return cpp.Absyn.Typeint()
+    elif isinstance(expr,cpp.Absyn.Edbl):
+        return cpp.Absyn.Typedouble()    
+    elif isinstance(expr,cpp.Absyn.Ebool):
+        return cpp.Absyn.Typebool()
+        
+    #&& and ||
+    elif isinstance(expr,cpp.Absyn.Eand) or isinstance(expr,cpp.Absyn.Eor):
+        #if both are bool
+        inf1=infer(expr.expr_1,contx)
+        inf2=infer(expr.expr_2,contx)
+        if isinstance(inf1,cpp.Absyn.Typebool) and isinstance(inf2,cpp.Absyn.Typebool):
+            return cpp.Absyn.Typebool()
+        else:
+            err.error("|| and && are boolean operators, got " + err.printabletype(inf1) +"," + err.printabletype(inf2) + " instead",contx)
+
+    #Vars
+    elif isinstance(expr,cpp.Absyn.Eitm):
+        return contx.get(expr.cident_)
+    
+    #-- and ++
+    elif isinstance(expr,cpp.Absyn.Eainc) or isinstance(expr,cpp.Absyn.Eadec) or isinstance(expr,cpp.Absyn.Epinc) or isinstance(expr,cpp.Absyn.Epdec):
+        inf=infer(expr.expr_,contx)
+        
+        #If the operand is a variable, return its type if it is numeric or raise an error if it is not numeric
+        if isinstance(expr.expr_,cpp.Absyn.Eitm) and isinstance(inf,cpp.Absyn.Typeint):
+            return inf
+        else:
+            err.error("++ and -- require an int variable",contx)
+            
+    #== and !=
+    elif isinstance(expr,cpp.Absyn.Eeql) or isinstance(expr,cpp.Absyn.Edif):
+        type1=infer(expr.expr_1,contx)
+        type2=infer(expr.expr_2,contx)
+                
+        if type1.__class__ == type2.__class__:
+            return cpp.Absyn.Typebool()
+        else:
+            err.error("Type mismatch for == or !=, got "+ err.printabletype(type1)+ "," + err.printabletype(type2),contx)
+    #+ - * /
+    elif isinstance(expr,cpp.Absyn.Emod) or isinstance(expr,cpp.Absyn.Emul) or isinstance(expr,cpp.Absyn.Ediv) or isinstance(expr,cpp.Absyn.Eadd) or isinstance(expr,cpp.Absyn.Esub):
+        type1=infer(expr.expr_1,contx)
+        type2=infer(expr.expr_2,contx)
+        
+        #If types are the same and type1 is either double or int
+        if type1.__class__==type2.__class__ and (isinstance(type1,cpp.Absyn.Typedouble) or isinstance(type1,cpp.Absyn.Typeint)):
+            return type1
+        else:
+            err.error("Types for + - * / % must match and be numeric, got "+ err.printabletype(type1)+ "," + err.printabletype(type2),contx)
+    #< > >= <=
+    elif isinstance(expr,cpp.Absyn.Elt) or isinstance(expr,cpp.Absyn.Egt) or isinstance(expr,cpp.Absyn.Eegt) or isinstance(expr,cpp.Absyn.Eelt):
+        type1=infer(expr.expr_1,contx)
+        type2=infer(expr.expr_2,contx)
+                
+        #If they have the same class and type1 is either double or int
+        if type1.__class__ == type2.__class__ and (isinstance(type1,cpp.Absyn.Typedouble) or isinstance(type1,cpp.Absyn.Typeint)):
+            return cpp.Absyn.Typebool()
+        else:
+            err.error("Type mismatch for <,>,>=,<=, got "+ err.printabletype(type1)+ "," + err.printabletype(type2),contx)
+
+    #Function call
+    elif isinstance(expr,cpp.Absyn.Efun):
+        fnct=contx.get(expr.cident_)
+        
+        if not isinstance(fnct,cpp.Absyn.Fnct):
+            err.error(expr.cident_+ " is not a function: can't be invoked",contx)
+        
+        chk_fnct_call(expr,contx,fnct)
+        
+        #if we are here, no exception was generated
+        return fnct.type_
+
+    #Assigment
+    elif isinstance(expr,cpp.Absyn.Eass):
+        if not isinstance(expr.expr_1,cpp.Absyn.Eitm):
+            err.error("Can't assign expression to expression",contx)
+        
+        inf=infer(expr.expr_2,contx)
+        
+        if inf.__class__ == contx.get(expr.expr_1.cident_).__class__:
+            return inf
+        else:
+            err.error("Type mismatch in assignment, expected "+ err.printabletype(contx.get(expr.expr_1.cident_))   +" got " + err.printabletype(inf),contx)
+
+def chk_fnct_call(expr,contx,fnct):
+    '''Checks if a function call has the right number of arguments and that they have the right types
+    Does not support overloading, but it would be a nice feature to add
+    expr        expression to evaluate (call to a function)
+    contx       context
+    fnct        function (to know the signature)'''
+    if len(fnct.listargument_) != len(expr.listexpr_):
+        err.error("Wrong number of arguments, exptected "+str(len(fnct.listargument_))+ " got " + str(len (expr.listexpr_)),contx)
+    
+    for i in range(len(fnct.listargument_)):
+        inf = infer(expr.listexpr_[i],contx)
+        if inf.__class__ != fnct.listargument_[i].type_.__class__:
+            err.error("Type mismatch in function call, expected " + err.printabletype(fnct.listargument_[i].type_) + " got " + err.printabletype(inf),contx)
+def builtin(contx):
+    '''Adds the builtin definitions for lab3'''
+    
+    arg=cpp.Absyn.Argument(cpp.Absyn.Typeint(),"x")
+    larg=cpp.Absyn.ListArgument()
+    larg.add(arg)
+    printint=cpp.Absyn.Fnct(cpp.Absyn.Typevoid(),"printInt",larg,None)
+    contx.put("printInt",printint)
+
+    arg=cpp.Absyn.Argument(cpp.Absyn.Typedouble(),"x")
+    larg=cpp.Absyn.ListArgument()
+    larg.add(arg)
+    printdouble=cpp.Absyn.Fnct(cpp.Absyn.Typevoid(),"printDouble",larg,None)
+    contx.put("printDouble",printdouble)
+
+    larg=cpp.Absyn.ListArgument()
+    readint=cpp.Absyn.Fnct(cpp.Absyn.Typeint(),"readInt",larg,None)
+    contx.put("readInt",readint)
+
+    larg=cpp.Absyn.ListArgument()
+    readdouble=cpp.Absyn.Fnct(cpp.Absyn.Typedouble(),"readDouble",larg,None)
+    contx.put("readDouble",readdouble)
+
+
+if __name__=="__main__":
+    for f in range(1,len(sys.argv)):
+        try:
+            checkfile(sys.argv[f])
+            print "OK"
+        except Exception , inst:
+            print sys.argv[f], "\tFailed"
+            print inst
