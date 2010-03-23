@@ -119,13 +119,17 @@ def chk_block(statements,contx,new_contx,return_):
                 err.error("Must return an expression",contx)
             
         elif isinstance(i,cpp.Absyn.LocalVars):   #Var declaration (multiple vars)
-            print dir(i)
+            if isinstance(i.type_,cpp.Absyn.Typevoid):
+                err.error("Unable to declare void vars",contx)
             for j in i.listvitem_:
                 if isinstance(j,cpp.Absyn.VarNA): #Declaration without assignment
                     contx.put(j.cident_,i.type_)    #Putting the new vars into the context
                 else: #Declaration and assignment
-                    if infer(j.expr_,contx).__class__==i.type_.__class__:
+                    q=infer(j.expr_,contx)
+                    if q.__class__==i.type_.__class__:
                         contx.put(j.cident_,i.type_)
+                    else:
+                        err.error("Type mismatch in declaration %s, expected %s got %s"% (j.cident_,err.printabletype(i.type_),err.printabletype(q)),contx)
         elif isinstance(i,cpp.Absyn.Block):     #Block
             #Checking the block creating a new context
             has_return=chk_block(i.liststatement_,contx,True,return_);
@@ -165,13 +169,27 @@ def infer(expr,contx):
     contx       context'''
     
     #Literals
+    
     if isinstance(expr,cpp.Absyn.Eint):
         return cpp.Absyn.Typeint()
     elif isinstance(expr,cpp.Absyn.Edbl):
         return cpp.Absyn.Typedouble()    
     elif isinstance(expr,cpp.Absyn.Ebool):
         return cpp.Absyn.Typebool()
-        
+    elif isinstance(expr,cpp.Absyn.Estrng):
+        return cpp.Absyn.Typestrng()
+    #Negation "-a"
+    elif isinstance(expr,cpp.Absyn.ENeg):
+        inf=infer(expr.expr_,contx)
+        if isinstance(inf,cpp.Absyn.Typeint) or isinstance(inf,cpp.Absyn.Typedouble):
+            return inf
+        err.error("Expected numeric expression for - operator",contx)
+    #Boolean negation "!a"
+    elif isinstance(expr,cpp.Absyn.ENot):
+        inf=infer(expr.expr_,contx)
+        if isinstance(inf,cpp.Absyn.Typebool):
+            return inf
+        err.error("Expected boolean expression for ! operator",contx)
     #&& and ||
     elif isinstance(expr,cpp.Absyn.Eand) or isinstance(expr,cpp.Absyn.Eor):
         #if both are bool
@@ -277,6 +295,12 @@ def builtin(contx):
     larg.add(arg)
     printdouble=cpp.Absyn.Fnct(cpp.Absyn.Typevoid(),"printDouble",larg,None)
     contx.put("printDouble",printdouble)
+    
+    arg=cpp.Absyn.Argument(cpp.Absyn.Typestrng(),"x")
+    larg=cpp.Absyn.ListArgument()
+    larg.add(arg)
+    printdouble=cpp.Absyn.Fnct(cpp.Absyn.Typevoid(),"printString",larg,None)
+    contx.put("printString",printdouble)
 
     larg=cpp.Absyn.ListArgument()
     readint=cpp.Absyn.Fnct(cpp.Absyn.Typeint(),"readInt",larg,None)

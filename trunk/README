@@ -1,0 +1,2 @@
+./gencode
+  Will generate the needed missing classes and run the makefile

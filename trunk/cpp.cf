@@ -8,6 +8,8 @@ comment "#";	--Stripping out preprocessor stuff. This will make it just not work
 position token CIdent (letter | '_') (letter | digit | '_')*;		--Identifiers start with letter or '_' and then can have numbers too.
 TrueLit.	Bool			::=	"true";		--Naming it boolean it won't compile
 FalseLit.	Bool			::=	"false";
+
+Typestrng. Type            ::= "string"; --Maybe someone will not like this?
 Typebool.	Type			::=	"bool";
 Typedouble.	Type			::=	"double";
 Typeint.	Type			::=	"int";
@@ -48,23 +50,34 @@ If.         Statement       ::= "if" "(" Expr ")" Statement;
 Eint.		Expr16			::=	Integer;
 Edbl.		Expr16			::=	Double;
 Ebool.		Expr16			::=	Bool;
+Estrng.     Expr16          ::= String;
 Eitm.		Expr16			::=	CIdent;	
 Efun.		Expr15			::=	CIdent "(" [Expr] ")";
 Eainc.		Expr14			::=	Expr15 "++";
 Eadec.		Expr14			::=	Expr15 "--";
 Epinc.		Expr13			::=	"++" Expr14;
 Epdec.		Expr13			::=	"--" Expr14;
-Emul.		Expr12			::=	Expr12 "*" Expr13;
-Ediv.		Expr12			::=	Expr12 "/" Expr13;
-Emod.       Expr12          ::= Expr12 "%" Expr13;  --TODO
-Eadd.		Expr11			::=	Expr11 "+" Expr12;
-Esub.		Expr11			::=	Expr11 "-" Expr12;
+
+ENeg.       Expr12 ::= "-" Expr13 ;
+ENot.       Expr12 ::= "!" Expr13 ;
+
+
+Emul.		Expr11			::=	Expr11 "*" Expr12;
+Ediv.		Expr11			::=	Expr11 "/" Expr12;
+Emod.       Expr11          ::= Expr11 "%" Expr12;  --TODO
+Eadd.		Expr10			::=	Expr10 "+" Expr11;
+Esub.		Expr10			::=	Expr10 "-" Expr11;
+
+
+
 Elt.		Expr9			::=	Expr9 "<" Expr10;
 Egt.		Expr9			::=	Expr9 ">" Expr10;
 Eelt.		Expr9			::=	Expr9 "<=" Expr10;
 Eegt.		Expr9			::=	Expr9 ">=" Expr10;
 Eeql.		Expr8			::=	Expr8 "==" Expr9;
 Edif.		Expr8			::=	Expr8 "!=" Expr9;
+
+
 Eand.		Expr4			::=	Expr4 "&&" Expr5;
 Eor.		Expr3			::=	Expr3 "||" Expr4;
 Eass.		Expr2			::=	Expr3 "=" Expr2;        --I think this was wrong in lab1
