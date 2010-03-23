@@ -33,9 +33,9 @@ class var_env:
         self.cx.append(self.c)
     def pop(self):
         self.c=self.cx.pop()
-    def put(self,ident):
+    def put(self,ident,inc=1):
         self.var[ident]=self.c
-        self.c=self.c+1
+        self.c=self.c+inc
 
 class GeneralContext:
     '''This class is the general context

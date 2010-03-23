@@ -1,6 +1,5 @@
 int main () {
-    true;
-    false;
-    if (1==4) 4;
+    double a=4.0,b;
+    
     return 1;
 }

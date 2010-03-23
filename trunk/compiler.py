@@ -26,6 +26,12 @@ import context
 import inferred
 
 
+prefix= {
+        cpp.Absyn.Typeint:("i",1),
+        cpp.Absyn.Typebool:("i",1),
+        cpp.Absyn.Typedouble:("d",2),
+        }
+
 class labeler:
     '''This class provides a simple global counter used tor labels'''
     def __init__(self):
@@ -40,50 +46,57 @@ lbl=labeler()
 def ijvm_compile(filename):
     '''Compiles the program into JVM assembly'''
     prog,contx,inf=typechecker.checkfile(filename)
-    print inf
-    compile_block(prog.listdeclaration_[0].liststatement_)
+    compile_block(prog.listdeclaration_[0].liststatement_,inf)
 
-def compile_block(statements):
+def compile_block(statements,inf):
     for i in statements:
         if isinstance(i,cpp.Absyn.Expression):    #Expression
-            compile_expr(i.expr_)
-            print "pop"     #An expression returns a value, so we pop it now to free the stack
+            compile_expr(i.expr_,inf)
+            
+            if not isinstance(inf.getinfer(i.expr_),cpp.Absyn.Typevoid): #If not void, we remove the return value
+                emit ( "pop",-1)     #An expression returns a value, so we pop it now to free the stack
         elif isinstance(i,cpp.Absyn.LocalVars):   #Var declaration (multiple vars)
-            for j in i.listcident_:
-                variables.put(j)
-                '''elif isinstance(i,cpp.Absyn.LocalVarInit):   #Var declaration and initialization
-                variables.put(i.cident_)    #Putting the var
-                compile_expr(i.expr_)       #Resolving the assignment
-                print "istore %d" % variables.get(i.cident_) '''
+            for j in i.listvitem_:
+                p=prefix[i.type_.__class__]
+                variables.put(j.cident_,p[1])
+                
+                if isinstance(j,cpp.Absyn.VarNA): #Declaration without assignment
+                    emit("iconst_0",1)
+                else:
+                    compile_expr(j.expr_,inf)
+                emit("%sstore %d" % (p[0],variables.get(j.cident_)),-1)
+                
+                
+                
         elif isinstance(i,cpp.Absyn.Block): #New context
             variables.push()
-            compile_block(i.liststatement_)
+            compile_block(i.liststatement_,inf)
             variables.pop()
-        elif isinstance(i,cpp.Absyn.IfElse):
-            compile_expr(i.expr_) #Pushing the result of the condition
+        elif isinstance(i,cpp.Absyn.IfElse): #//TODO if
+            compile_expr(i.expr_,inf) #Pushing the result of the condition
             
             lab1=lbl.getlbl()
             
-            print "ifeq else%d" % lab1    #If expr is false
-            compile_block((i.statement_1,))  #True branch
-            print "goto endif%d" %lab1
-            print "else%d:" % lab1
-            compile_block((i.statement_2,))  #False branch
-            print "endif%d:" %lab1
+            emit( "ifeq else%d" % lab1,-1)    #If expr is false
+            compile_block((i.statement_1,),inf)  #True branch
+            emit( "goto endif%d" %lab1,0)
+            emit( "else%d:" % lab1,0)
+            compile_block((i.statement_2,),inf)  #False branch
+            emit( "endif%d:" %lab1,0)
         elif isinstance(i,cpp.Absyn.While):
             lab1=lbl.getlbl()
             
-            print "while%d:" % lab1
-            compile_expr(i.expr_)
-            print "ifeq endwhile%d" % lab1  #If condition is false, exits
-            compile_block((i.statement_,))  #While body
-            print "goto while%d" % lab1
-            print "endwhile%d:" % lab1
+            emit ( "while%d:" % lab1,0)
+            compile_expr(i.expr_,inf)
+            emit ("ifeq endwhile%d" % lab1,-1)  #If condition is false, exits
+            compile_block((i.statement_,),inf)  #While body
+            emit ( "goto while%d" % lab1,0)
+            emit ( "endwhile%d:" % lab1,0)
 
 def emit(instr,s):
     print instr
 
-def compile_expr(e):
+def compile_expr(e,inf):
     '''
 Edbl.       Expr16          ::= Double;
 Ebool.      Expr16          ::= Bool;
@@ -170,47 +183,56 @@ Eass.       Expr2           ::= Expr3 "=" Expr2;        --I think this was wrong
             emit("iconst_1",1)
         else:
             emit("iconst_0",1)
-            
-            
-            
-            
-    elif isinstance(e,cpp.Absyn.Eitm): #Variable
-        print "iload %d" % variables.get(e.cident_)
+    elif isinstance(e,cpp.Absyn.Eitm): #Loads Variable
+        r=prefix[inf.getinfer(e).__class__]
+        emit ("%sload %d" % (r[0],variables.get(e.cident_)),r[1])
     elif isinstance(e,cpp.Absyn.Eass): #Assignment
-        compile_expr(e.expr_2)
-        print "dup" #Needed becaus assignment returns a value as well
-        print "istore %d" % variables.get(e.expr_1.cident_)
+        compile_expr(e.expr_2,inf)
+        emit("dup",1) #Needed becaus assignment returns a value as well
+        p=prefix[inf.getinfer(e).__class__]
+        emit("%sstore %d" % (p[0],variables.get(e.expr_1.cident_)),-1)
     elif isinstance(e,cpp.Absyn.Eainc): #var++
-        print "iload %d" % variables.get(e.expr_.cident_) #Load var on stack
-        print "iinc %d 1" % variables.get(e.expr_.cident_) #increment variable
+        emit ("iload %d" % variables.get(e.expr_.cident_),1) #Load var on stack
+        emit ("iinc %d 1" % variables.get(e.expr_.cident_),0) #increment variable
     elif isinstance(e,cpp.Absyn.Epinc): #++var
-        print "iinc %d 1" % variables.get(e.expr_.cident_) #increment variable
-        print "iload %d" % variables.get(e.expr_.cident_) #Load var on stack
-    elif isinstance(e,cpp.Absyn.Efun): #Function call (print)
-        compile_expr(e.listexpr_[0])    #Only has one param
+        emit("iinc %d 1" % variables.get(e.expr_.cident_),0) #increment variable
+        emit("iload %d" % variables.get(e.expr_.cident_),1) #Load var on stack
+    elif isinstance(e,cpp.Absyn.Eadec): #var--
+        emit ("iload %d" % variables.get(e.expr_.cident_),1) #Load var on stack
+        emit ("iinc %d -1" % variables.get(e.expr_.cident_),0) #increment variable
+    elif isinstance(e,cpp.Absyn.Epdec): #--var
+        emit("iinc %d -1" % variables.get(e.expr_.cident_),0) #increment variable
+        emit("iload %d" % variables.get(e.expr_.cident_),1) #Load var on stack    
+        
+        
+        
+        
+        
+    elif isinstance(e,cpp.Absyn.Efun): #Function call (print) //TODO this one is completely wrong
+        compile_expr(e.listexpr_[0],inf)    #Only has one param
         print "invokestatic runtime/iprint(I)V"
         print "bipush 1"    #Return value of iprint
     elif isinstance(e,cpp.Absyn.Eand):  #Short-circuit and operator
         lab1=lbl.getlbl()
-        compile_expr(e.expr_1)  #Evaluating 1st operand
+        compile_expr(e.expr_1,inf)  #Evaluating 1st operand
         print "ifeq andfalse%d" % lab1  #If 1st operand is false
-        compile_expr(e.expr_2)  #Evaluating 2nd operand, that will give the value to the expression
+        compile_expr(e.expr_2,inf)  #Evaluating 2nd operand, that will give the value to the expression
         print "goto endand%d" % lab1
         print "andfalse%d:" % lab1
         print "bipush 0"    #push false
         print "endand%d:" % lab1
     elif isinstance(e,cpp.Absyn.Eor):  #Short-circuit or operator
         lab1=lbl.getlbl()
-        compile_expr(e.expr_1)  #Evaluating 1st operand
+        compile_expr(e.expr_1,inf)  #Evaluating 1st operand
         print "ifne  ortrue%d" % lab1  #expr1 true,
-        compile_expr(e.expr_2)  #2nd operand
+        compile_expr(e.expr_2,inf)  #2nd operand
         print "goto endor%d" % lab1
         print "ortrue%d:" % lab1
         print "bipush 1" #pushing the true value
         print "endor%d:" %lab1
     elif e.__class__ in comp_dic:   #Comparison
-        compile_expr(e.expr_1) #Pushing operands
-        compile_expr(e.expr_2)
+        compile_expr(e.expr_1,inf) #Pushing operands
+        compile_expr(e.expr_2,inf)
         
         lab1=lbl.getlbl()   #Getting label
         
@@ -221,8 +243,8 @@ Eass.       Expr2           ::= Expr3 "=" Expr2;        --I think this was wrong
         print "bipush 1"    #True
         print "endexpr%d:" %lab1
     elif e.__class__ in dic: #Aritmetic operations
-        compile_expr(e.expr_1)
-        compile_expr(e.expr_2)
+        compile_expr(e.expr_1,inf)
+        compile_expr(e.expr_2,inf)
         print dic[e.__class__]
 
 if __name__=="__main__":

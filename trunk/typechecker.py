@@ -263,7 +263,7 @@ def infer(expr,contx,t_inf):
         if not isinstance(fnct,cpp.Absyn.Fnct):
             err.error(expr.cident_+ " is not a function: can't be invoked",contx)
         
-        chk_fnct_call(expr,contx,fnct)
+        chk_fnct_call(expr,contx,fnct,t_inf)
         
         #if we are here, no exception was generated
         return t_inf.putinfer(expr,fnct.type_)
