@@ -60,3 +60,5 @@ if __name__ == "__main__":
             printversion()
 
     pass #Compile the files
+    for i in files:
+        compiler.ijvm_compile(i)

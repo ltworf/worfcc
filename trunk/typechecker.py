@@ -25,12 +25,14 @@ import context      #Package that provides the stack of contexts
 import sys
 import java_cup
 import err
+import inferred
 
 def checkfile(filename):
     '''Typechecking for a file
     filename            file to typecheck
     
     This function does not return in case of failure'''
+    t_inf=inferred.inferred()
     gcont=context.GeneralContext("Declaration")      #Initializing the general context, will automatically have an empty context
     builtin(gcont)  #Adds built-in definitions
     try:
@@ -50,7 +52,7 @@ def checkfile(filename):
 
     #Typechecking the functions
     for i in prog.listdeclaration_:
-        check_fnct(i,gcont)
+        check_fnct(i,gcont,t_inf)
     
     #Special check for the main function
     main=gcont.get("main")
@@ -58,9 +60,9 @@ def checkfile(filename):
         err.error("Main function must be:\nint main();",gcont)
     
     #Will return the tree and the context containing only the functions
-    return (prog,gcont)
+    return (prog,gcont,t_inf)
 
-def check_fnct(f,contx):
+def check_fnct(f,contx,t_inf):
     '''Checks a function
     f               function
     contx           context
@@ -75,7 +77,7 @@ def check_fnct(f,contx):
     for i in f.listargument_:
         contx.put(i.cident_,i.type_)
 
-    ret=chk_block(f.liststatement_,contx,False,f.type_) #Checking the statements in a block that has the same context
+    ret=chk_block(f.liststatement_,contx,False,f.type_,t_inf) #Checking the statements in a block that has the same context
     
     
     
@@ -85,7 +87,7 @@ def check_fnct(f,contx):
     
     contx.pop()     #Removing the context
 
-def chk_block(statements,contx,new_contx,return_):
+def chk_block(statements,contx,new_contx,return_,t_inf):
     '''Checks a block. A block can be a function.
     statements          list of the statements in the block (order is important)
     contx               context
@@ -108,7 +110,7 @@ def chk_block(statements,contx,new_contx,return_):
         if isinstance(i,cpp.Absyn.Return):    #Return with value
             has_return=True
             
-            inf=infer(i.expr_,contx)
+            inf=infer(i.expr_,contx,t_inf)
             if inf.__class__!=return_.__class__: #Return with value, checking its type
                 err.printabletype(return_)
                 err.error ("Type mismatch in return, expected "+err.printabletype(return_)+ " got "+ err.printabletype(inf),contx)
@@ -125,35 +127,35 @@ def chk_block(statements,contx,new_contx,return_):
                 if isinstance(j,cpp.Absyn.VarNA): #Declaration without assignment
                     contx.put(j.cident_,i.type_)    #Putting the new vars into the context
                 else: #Declaration and assignment
-                    q=infer(j.expr_,contx)
+                    q=infer(j.expr_,contx,t_inf)
                     if q.__class__==i.type_.__class__:
                         contx.put(j.cident_,i.type_)
                     else:
                         err.error("Type mismatch in declaration %s, expected %s got %s"% (j.cident_,err.printabletype(i.type_),err.printabletype(q)),contx)
         elif isinstance(i,cpp.Absyn.Block):     #Block
             #Checking the block creating a new context
-            has_return=chk_block(i.liststatement_,contx,True,return_);
+            has_return=chk_block(i.liststatement_,contx,True,return_,t_inf);
         elif isinstance(i,cpp.Absyn.Expression):    #Expression
-            infer(i.expr_,contx)
+            infer(i.expr_,contx,t_inf)
         elif isinstance(i,cpp.Absyn.While):    #While loop
-            inf = infer(i.expr_,contx)
+            inf = infer(i.expr_,contx,t_inf)
             if not isinstance(inf,cpp.Absyn.Typebool):
                 err.error("Condition in while must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
             #Check while's statement in the same context, as a list of one item.
             # If it is a block, another recoursive call will create the new context
-            chk_block([i.statement_,],contx,False,return_)#Check the instructions
+            chk_block([i.statement_,],contx,False,return_,t_inf)#Check the instructions
         elif isinstance(i,cpp.Absyn.If):#If without else
-            inf = infer(i.expr_,contx)
+            inf = infer(i.expr_,contx,t_inf)
             if not isinstance(inf,cpp.Absyn.Typebool):
                 err.error("Condition in if must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
-            chk_block([i.statement_,],contx,False,return_)#Check the instructions
+            chk_block([i.statement_,],contx,False,return_,t_inf)#Check the instructions
         elif isinstance(i,cpp.Absyn.IfElse):    #if else
-            inf = infer(i.expr_,contx)
+            inf = infer(i.expr_,contx,t_inf)
             if not isinstance(inf,cpp.Absyn.Typebool):
                 err.error("Condition in if must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
             #has_return will be true if both of the branches contains a return
-            has_return=chk_block([i.statement_1,],contx,False,return_) #Check the instructions in the if
-            has_return=has_return and chk_block([i.statement_2,],contx,False,return_) #Check the instructions in the else
+            has_return=chk_block([i.statement_1,],contx,False,return_,t_inf) #Check the instructions in the if
+            has_return=has_return and chk_block([i.statement_2,],contx,False,return_,t_inf) #Check the instructions in the else
 
         #Disallow statements after the return
         if has_return and index != len(statements)-1: 
@@ -163,7 +165,7 @@ def chk_block(statements,contx,new_contx,return_):
         contx.pop()
     return has_return
 
-def infer(expr,contx):
+def infer(expr,contx,t_inf):
     '''Returns the type of an expression
     expr        Expression to infer
     contx       context'''
@@ -171,76 +173,86 @@ def infer(expr,contx):
     #Literals
     
     if isinstance(expr,cpp.Absyn.Eint):
-        return cpp.Absyn.Typeint()
+        return t_inf.putinfer(expr,cpp.Absyn.Typeint())
     elif isinstance(expr,cpp.Absyn.Edbl):
-        return cpp.Absyn.Typedouble()    
+        return t_inf.putinfer(expr,cpp.Absyn.Typedouble())
     elif isinstance(expr,cpp.Absyn.Ebool):
-        return cpp.Absyn.Typebool()
+        return t_inf.putinfer(expr,cpp.Absyn.Typebool())
     elif isinstance(expr,cpp.Absyn.Estrng):
-        return cpp.Absyn.Typestrng()
+        return t_inf.putinfer(expr,cpp.Absyn.Typestrng())
     #Negation "-a"
     elif isinstance(expr,cpp.Absyn.ENeg):
-        inf=infer(expr.expr_,contx)
+        inf=infer(expr.expr_,contx,t_inf)
         if isinstance(inf,cpp.Absyn.Typeint) or isinstance(inf,cpp.Absyn.Typedouble):
-            return inf
+            return t_inf.putinfer(expr,inf)
         err.error("Expected numeric expression for - operator",contx)
     #Boolean negation "!a"
     elif isinstance(expr,cpp.Absyn.ENot):
-        inf=infer(expr.expr_,contx)
+        inf=infer(expr.expr_,contx,t_inf)
         if isinstance(inf,cpp.Absyn.Typebool):
-            return inf
+            return t_inf.putinfer(expr,inf)
         err.error("Expected boolean expression for ! operator",contx)
     #&& and ||
     elif isinstance(expr,cpp.Absyn.Eand) or isinstance(expr,cpp.Absyn.Eor):
         #if both are bool
-        inf1=infer(expr.expr_1,contx)
-        inf2=infer(expr.expr_2,contx)
+        inf1=infer(expr.expr_1,contx,t_inf)
+        inf2=infer(expr.expr_2,contx,t_inf)
         if isinstance(inf1,cpp.Absyn.Typebool) and isinstance(inf2,cpp.Absyn.Typebool):
-            return cpp.Absyn.Typebool()
+            return t_inf.putinfer(expr,cpp.Absyn.Typebool())
         else:
             err.error("|| and && are boolean operators, got " + err.printabletype(inf1) +"," + err.printabletype(inf2) + " instead",contx)
 
     #Vars
     elif isinstance(expr,cpp.Absyn.Eitm):
-        return contx.get(expr.cident_)
+        return t_inf.putinfer(expr,contx.get(expr.cident_))
     
     #-- and ++
     elif isinstance(expr,cpp.Absyn.Eainc) or isinstance(expr,cpp.Absyn.Eadec) or isinstance(expr,cpp.Absyn.Epinc) or isinstance(expr,cpp.Absyn.Epdec):
-        inf=infer(expr.expr_,contx)
+        inf=infer(expr.expr_,contx,t_inf)
         
         #If the operand is a variable, return its type if it is numeric or raise an error if it is not numeric
         if isinstance(expr.expr_,cpp.Absyn.Eitm) and isinstance(inf,cpp.Absyn.Typeint):
-            return inf
+            return t_inf.putinfer(expr,inf)
         else:
             err.error("++ and -- require an int variable",contx)
             
     #== and !=
     elif isinstance(expr,cpp.Absyn.Eeql) or isinstance(expr,cpp.Absyn.Edif):
-        type1=infer(expr.expr_1,contx)
-        type2=infer(expr.expr_2,contx)
+        type1=infer(expr.expr_1,contx,t_inf)
+        type2=infer(expr.expr_2,contx,t_inf)
                 
         if type1.__class__ == type2.__class__:
-            return cpp.Absyn.Typebool()
+            return t_inf.putinfer(expr,cpp.Absyn.Typebool())
         else:
             err.error("Type mismatch for == or !=, got "+ err.printabletype(type1)+ "," + err.printabletype(type2),contx)
+    # %
+    elif isinstance(expr,cpp.Absyn.Emod):
+        type1=infer(expr.expr_1,contx,t_inf)
+        type2=infer(expr.expr_2,contx,t_inf)
+        
+        #If types are the same and type1 is either double or int
+        if type1.__class__==type2.__class__ and isinstance(type1,cpp.Absyn.Typeint):
+            return t_inf.putinfer(expr,type1)
+        else:
+            err.error("Types for %% must match and be int, got "+ err.printabletype(type1)+ "," + err.printabletype(type2),contx)
     #+ - * /
-    elif isinstance(expr,cpp.Absyn.Emod) or isinstance(expr,cpp.Absyn.Emul) or isinstance(expr,cpp.Absyn.Ediv) or isinstance(expr,cpp.Absyn.Eadd) or isinstance(expr,cpp.Absyn.Esub):
-        type1=infer(expr.expr_1,contx)
-        type2=infer(expr.expr_2,contx)
+    elif isinstance(expr,cpp.Absyn.Emul) or isinstance(expr,cpp.Absyn.Ediv) or isinstance(expr,cpp.Absyn.Eadd) or isinstance(expr,cpp.Absyn.Esub):
+        type1=infer(expr.expr_1,contx,t_inf)
+        type2=infer(expr.expr_2,contx,t_inf)
         
         #If types are the same and type1 is either double or int
         if type1.__class__==type2.__class__ and (isinstance(type1,cpp.Absyn.Typedouble) or isinstance(type1,cpp.Absyn.Typeint)):
-            return type1
+            return t_inf.putinfer(expr,type1)
         else:
-            err.error("Types for + - * / % must match and be numeric, got "+ err.printabletype(type1)+ "," + err.printabletype(type2),contx)
+            err.error("Types for + - * / must match and be numeric, got "+ err.printabletype(type1)+ "," + err.printabletype(type2),contx)
     #< > >= <=
     elif isinstance(expr,cpp.Absyn.Elt) or isinstance(expr,cpp.Absyn.Egt) or isinstance(expr,cpp.Absyn.Eegt) or isinstance(expr,cpp.Absyn.Eelt):
-        type1=infer(expr.expr_1,contx)
-        type2=infer(expr.expr_2,contx)
+        type1=infer(expr.expr_1,contx,t_inf)
+        type2=infer(expr.expr_2,contx,t_inf)
                 
         #If they have the same class and type1 is either double or int
         if type1.__class__ == type2.__class__ and (isinstance(type1,cpp.Absyn.Typedouble) or isinstance(type1,cpp.Absyn.Typeint)):
-            return cpp.Absyn.Typebool()
+            return t_inf.putinfer(expr,cpp.Absyn.Typebool())
         else:
             err.error("Type mismatch for <,>,>=,<=, got "+ err.printabletype(type1)+ "," + err.printabletype(type2),contx)
 
@@ -254,21 +266,21 @@ def infer(expr,contx):
         chk_fnct_call(expr,contx,fnct)
         
         #if we are here, no exception was generated
-        return fnct.type_
+        return t_inf.putinfer(expr,fnct.type_)
 
     #Assigment
     elif isinstance(expr,cpp.Absyn.Eass):
         if not isinstance(expr.expr_1,cpp.Absyn.Eitm):
             err.error("Can't assign expression to expression",contx)
         
-        inf=infer(expr.expr_2,contx)
+        inf=infer(expr.expr_2,contx,t_inf)
         
         if inf.__class__ == contx.get(expr.expr_1.cident_).__class__:
-            return inf
+            return t_inf.putinfer(expr,inf)
         else:
             err.error("Type mismatch in assignment, expected "+ err.printabletype(contx.get(expr.expr_1.cident_))   +" got " + err.printabletype(inf),contx)
 
-def chk_fnct_call(expr,contx,fnct):
+def chk_fnct_call(expr,contx,fnct,t_inf):
     '''Checks if a function call has the right number of arguments and that they have the right types
     Does not support overloading, but it would be a nice feature to add
     expr        expression to evaluate (call to a function)
@@ -278,7 +290,7 @@ def chk_fnct_call(expr,contx,fnct):
         err.error("Wrong number of arguments, exptected "+str(len(fnct.listargument_))+ " got " + str(len (expr.listexpr_)),contx)
     
     for i in range(len(fnct.listargument_)):
-        inf = infer(expr.listexpr_[i],contx)
+        inf = infer(expr.listexpr_[i],contx,t_inf)
         if inf.__class__ != fnct.listargument_[i].type_.__class__:
             err.error("Type mismatch in function call, expected " + err.printabletype(fnct.listargument_[i].type_) + " got " + err.printabletype(inf),contx)
 def builtin(contx):
