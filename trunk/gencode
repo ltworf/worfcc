@@ -1,6 +1,6 @@
 #!/bin/bash
 
-bnfc-2.4b-linux-i386 -m -java1.5 *cf
+bnfc -m -java1.5 *cf
 patch Makefile patchmake
 make clean
 make

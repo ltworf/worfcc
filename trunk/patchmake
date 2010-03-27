@@ -1,7 +1,10 @@
 15c15,21
 < all: test cpp.ps
 ---
-> all: cuplib test
+> all: mkjlex cuplib test
+> 
+> mkjlex:
+> 	javac JLex/Main.java
 > 
 > cuplib:
 > 	yes A | unzip java-cup-11a.jar
