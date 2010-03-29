@@ -45,4 +45,11 @@ class runtime {
     public static double readDouble() {
         return in.nextDouble();    
     }
+    
+    public static void printBool(int a) {
+        if (a!=0)
+            System.out.println("true");
+        else
+            System.out.println("false");
+    }
 }
