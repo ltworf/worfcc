@@ -170,10 +170,7 @@ class cfunction():
                     self.variables.put(j.cident_,p[1])
                 
                     if isinstance(j,cpp.Absyn.VarNA): #Declaration without assignment
-                        if isinstance(i.type_,cpp.Absyn.Typedouble):
-                            self.emit("ldc_w 0.0",2)
-                        else:
-                            self.emit("iconst_0",1)
+                        self.emit("%sconst_0"%p[0],p[1])
                     else:
                         self.compile_expr(j.expr_)
                     self.emit("%sstore %d" % (p[0],self.variables.get(j.cident_)),-1)
@@ -314,7 +311,11 @@ class cfunction():
             
             
             
-            
+        elif isinstance(e,cpp.Absyn.ENeg):
+            self.compile_expr(e.expr_)
+            p=prefix[self.inf.getinfer(e).__class__]
+            self.emit("%sneg"%p[0],0)
+    
         elif isinstance(e,cpp.Absyn.Eand):  #Short-circuit and operator
             lab1=self.lbl.getlbl()
             self.compile_expr(e.expr_1)  #Evaluating 1st operand

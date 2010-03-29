@@ -2,7 +2,7 @@ int main () {
     printString("Insert a ");
     int a=readInt();
       
-    printInt(fact(a));
+    printInt(-fact(a));
            
     return a;
 }
@@ -17,11 +17,14 @@ int fact(int n) {
         return n;
     }
     else {
+        ;
         //printInt(n);
         //n=n*fact(n-1);
         //printInt(n);
         //printString("no");
-        return n*fact(n-1);
+        //
+        //return n;
     }
-    //return n;
+    return n*fact(n-1);
+    
 }
