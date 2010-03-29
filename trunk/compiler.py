@@ -245,16 +245,7 @@ class cfunction():
         }
     
         if isinstance(e,cpp.Absyn.Eint): #Integer value
-            if e.integer_ == -1:    #Constants
-                self.emit("iconst_m1",1)
-            elif e.integer_ in range(-1,6):
-                self.emit("iconst_%d" % e.integer_,1)
-            elif e.integer_ in range(-129,128):   #Push byte
-                self.emit ("bipush %d"%e.integer_,1)
-            elif e.integer_ in range(-32769,32768): #Push short
-                self.emit("sipush %d" % e.integer_ ,1)
-            else:                                   #Push integer
-                self.emit("ldc %d" % e.integer_,1)
+            self.emit("ldc %d" % e.integer_,1)
         elif isinstance(e,cpp.Absyn.Ebool): #Boolean value
             if isinstance(e.bool_,cpp.Absyn.TrueLit):
                 self.emit("iconst_1",1) #True
@@ -269,9 +260,15 @@ class cfunction():
             self.emit ("%sload %d" % (r[0],self.variables.get(e.cident_)),r[1])
         elif isinstance(e,cpp.Absyn.Eass): #Assignment
             self.compile_expr(e.expr_2)
-            self.emit("dup",1) #Needed becaus assignment returns a value as well
-            p=prefix[self.inf.getinfer(e).__class__]
-            self.emit("%sstore %d" % (p[0],self.variables.get(e.expr_1.cident_)),-1)
+            qq=self.inf.getinfer(e)
+            p=prefix[qq.__class__]
+            
+            if isinstance(qq,cpp.Absyn.Typedouble):
+                self.emit("dup2",2) #Needed becaus assignment returns a value as well
+            else:
+                self.emit("dup",1) #Needed becaus assignment returns a value as well
+            
+            self.emit("%sstore %d" % (p[0],self.variables.get(e.expr_1.cident_)),p[1]*-1)
         elif isinstance(e,cpp.Absyn.Eainc): #var++
             self.emit ("iload %d" % self.variables.get(e.expr_.cident_),1) #Load var on stack
             self.emit ("iinc %d 1" % self.variables.get(e.expr_.cident_),0) #increment variable

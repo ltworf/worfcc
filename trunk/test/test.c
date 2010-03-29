@@ -1,19 +1,27 @@
 int main () {
-    printString("Insert n to factorize");
+    printString("Insert a ");
     int a=readInt();
+      
     printInt(fact(a));
-       
-       
+           
     return a;
 }
 
 int fact(int n) {
+    
     bool c=n<3;
-    printBool(c);
-    if (c) return n;
-    else {
-        printString("no");
-        //return n*fact(n-1);
+    //printBool(c);
+    
+    if (n<3) {
+        //printInt(n);
+        return n;
     }
-    return 0;
+    else {
+        //printInt(n);
+        //n=n*fact(n-1);
+        //printInt(n);
+        //printString("no");
+        return n*fact(n-1);
+    }
+    //return n;
 }
