@@ -1,5 +1,7 @@
 int main () {
-    double a=4.0,b;
+    int a;
+    a++;
+    a*3+a;
     
     return 1;
 }
