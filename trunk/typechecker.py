@@ -27,6 +27,8 @@ import java_cup
 import err
 import inferred
 
+builtins=("printInt","printDouble","printString","readInt","readDouble")
+
 def checkfile(filename):
     '''Typechecking for a file
     filename            file to typecheck

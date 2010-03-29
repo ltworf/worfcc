@@ -57,7 +57,6 @@ def ijvm_compile(filename):
 
 def class_header(classname):
     r=''
-    
     r+=".class public %s\n" % classname
     r+=".super java/lang/Object\n"
     r+="\n"
@@ -69,11 +68,12 @@ def class_header(classname):
     r+="\n"
     r+=".method public static main([Ljava/lang/String;)V\n"
     r+=".limit locals 1\n"
-    r+="\tinvokestatic %s/main()I\n"
+    r+="\tinvokestatic %s/main()I\n" % classname
     r+="\tpop\n"
     r+="\treturn\n"
     r+=".end method\n"
     return r
+
 def get_signature(f):
     asignature=[]
     for i in f.listargument_:
@@ -318,7 +318,15 @@ class cfunction():
             
             p=prefix[f.type_.__class__]
             
-            self.emit("invokestatic %s/%s" % (self.classname,get_signature(f)),before-after+p[1])
+            
+            #Distinguishes between builtin functions and normal ones. I am not proud of this code.
+            if e.cident_ in typechecker.builtins:
+                cname="runtime"
+            else:
+                cname=self.classname
+            
+            
+            self.emit("invokestatic %s/%s" % (cname,get_signature(f)),before-after+p[1])
             
             
             

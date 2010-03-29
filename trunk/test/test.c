@@ -1,12 +1,8 @@
 int main () {
-    return add(1,2,3);
+    printInt(fact(5));
+    return 0;
 }
 
-int add(int a,int b,int c) {
-    return a+b;
-}
-
-void n() {
-    int a,b,c,d;
-    a++ +b +c +d;
+int fact(int a) {
+    return a+2;
 }
