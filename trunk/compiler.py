@@ -24,6 +24,7 @@ import sys
 import cpp
 import context
 import inferred
+import os.path
 
 
 prefix= {
@@ -45,17 +46,50 @@ def ijvm_compile(filename):
     '''Compiles the program into JVM assembly'''
     prog,contx,inf=typechecker.checkfile(filename)
     
+    #Gets the name of the class
+    cname='.'.join(os.path.basename(filename).split('.')[:-1])
+    
+    
+    print class_header(cname)
     for i in prog.listdeclaration_:
-        cfunction(i,inf,contx)
+        c=cfunction(i,inf,contx,cname)
+        print c.fcompile()
 
-
-
+def class_header(classname):
+    r=''
+    
+    r+=".class public %s\n" % classname
+    r+=".super java/lang/Object\n"
+    r+="\n"
+    r+=".method public <init>()V\n"
+    r+="\taload_0\n"
+    r+="\tinvokespecial java/lang/Object/<init>()V\n"
+    r+="\treturn\n"
+    r+=".end method\n"
+    r+="\n"
+    r+=".method public static main([Ljava/lang/String;)V\n"
+    r+=".limit locals 1\n"
+    r+="\tinvokestatic %s/main()I\n"
+    r+="\tpop\n"
+    r+="\treturn\n"
+    r+=".end method\n"
+    return r
+def get_signature(f):
+    asignature=[]
+    for i in f.listargument_:
+        p=prefix[i.type_.__class__]
+        asignature.append(prefix[i.type_.__class__][0].upper())
+        
+    return '%s(%s)%s' % (f.cident_, ','.join(asignature) , prefix[f.type_.__class__][0].upper())
+    
 class cfunction():
     '''Purpose of this class is to compile a function'''
-    def __init__(self,f,inf,contx):
+    def __init__(self,f,inf,contx,classname):
         '''f:   Fnct object to compile
         inf: inferred class to access the type of the expressions'''
         self.contx=contx #Context, contains the declarations of the other functions
+        
+        self.classname=classname
         
         self.lbl=labeler()  #Unique label sequence for the function
         self.variables=context.var_env()    #Variables
@@ -63,11 +97,9 @@ class cfunction():
         self.inf=inf
         
         #Inserting variables of the declaration in the context
-        self.asignature=[]
         for i in f.listargument_:
             p=prefix[i.type_.__class__]
             self.variables.put(i.cident_,p[1])
-            self.asignature.append(prefix[i.type_.__class__][0].upper())
         
         self.f=f; #Function is retrievable
         
@@ -77,18 +109,32 @@ class cfunction():
         self.maxopstack=0;
         self.opcodes=[]
         
-        self.compile_block(f.liststatement_)
+        self.code=None
+        
+    def fcompile(self):
+        '''Returns the jasmin assembly for the function
+        This function compiles only the 1st time it is invoked.
+        The other times it will only return the same string'''
+        
+        if self.code!=None:
+            return self.code
+        
+        self.compile_block(self.f.liststatement_)
+        
         
         #TODO optimize
         
-        print ""
-        print ".method public static %s(%s)%s" % (f.cident_, ','.join(self.asignature) , prefix[f.type_.__class__][0].upper())
-        print ".limit locals %d" % self.variables.getmax()
-        print ".limit stack %d" % self.maxopstack
+        r='\n'
+        r+= ".method public static %s\n" % get_signature(self.f)
+        r+= ".limit locals %d\n" % self.variables.getmax()
+        r+= ".limit stack %d\n" % self.maxopstack
         
         for i in self.opcodes:
-            print i
-        print ".end method"
+            r+="\t%s\n" % i
+        r+= ".end method\n"
+        
+        self.code=r
+        return r
         
     def emit(self,instr,s):
         '''Emits an instruction and calculates the stack operand size'''
@@ -201,10 +247,10 @@ class cfunction():
         '''
     
         dic= {
-        cpp.Absyn.Eadd: "iadd",
-        cpp.Absyn.Emul: "imul",
-        cpp.Absyn.Esub: "isub",
-        cpp.Absyn.Ediv: "idiv"
+            cpp.Absyn.Eadd: "iadd",
+            cpp.Absyn.Emul: "imul",
+            cpp.Absyn.Esub: "isub",
+            cpp.Absyn.Ediv: "idiv"
         }
     
         comp_dic= {
@@ -261,28 +307,51 @@ class cfunction():
         
         
         
-        elif isinstance(e,cpp.Absyn.Efun): #Function call (print) //TODO this one is completely wrong
-            self.compile_expr(e.listexpr_[0])    #Only has one param
-            print "invokestatic runtime/iprint(I)V"
-            print "bipush 1"    #Return value of iprint
+        elif isinstance(e,cpp.Absyn.Efun): #Function call
+            #Emits code for the params
+            before=self.opstack
+            for q in e.listexpr_:
+                self.compile_expr(q)
+            after=self.opstack
+            
+            f=self.contx.get(e.cident_)
+            
+            p=prefix[f.type_.__class__]
+            
+            self.emit("invokestatic %s/%s" % (self.classname,get_signature(f)),before-after+p[1])
+            
+            
+            
+            
+            
+            
+            
+            
+            
         elif isinstance(e,cpp.Absyn.Eand):  #Short-circuit and operator
             lab1=self.lbl.getlbl()
             self.compile_expr(e.expr_1)  #Evaluating 1st operand
-            print "ifeq andfalse%d" % lab1  #If 1st operand is false
+            self.emit( "ifeq andfalse%d" % lab1,-1)  #If 1st operand is false
             self.compile_expr(e.expr_2)  #Evaluating 2nd operand, that will give the value to the expression
-            print "goto endand%d" % lab1
-            print "andfalse%d:" % lab1
-            print "bipush 0"    #push false
-            print "endand%d:" % lab1
+            self.emit("goto endand%d" % lab1,0)
+            self.emit("andfalse%d:" % lab1,0)
+            self.emit("iconst_0",1)    #push false
+            
+            #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
+            self.emit("endand%d:" % lab1,-1)   
+            
         elif isinstance(e,cpp.Absyn.Eor):  #Short-circuit or operator
             lab1=self.lbl.getlbl()
             self.compile_expr(e.expr_1)  #Evaluating 1st operand
-            print "ifne  ortrue%d" % lab1  #expr1 true,
+            self.emit("ifne  ortrue%d" % lab1,-1)  #expr1 true,
             self.compile_expr(e.expr_2)  #2nd operand
-            print "goto endor%d" % lab1
-            print "ortrue%d:" % lab1
-            print "bipush 1" #pushing the true value
-            print "endor%d:" %lab1
+            self.emit("goto endor%d" % lab1,0)
+            self.emit("ortrue%d:" % lab1,0)
+            
+            self.emit("iconst_1",1) #pushing the true value
+            
+            #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
+            self.emit("endor%d:" %lab1,-1)
         elif e.__class__ in comp_dic:   #Comparison
             self.compile_expr(e.expr_1) #Pushing operands
             self.compile_expr(e.expr_2)

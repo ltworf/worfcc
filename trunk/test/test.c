@@ -1,8 +1,8 @@
 int main () {
-    if (1>2) return 3; else return 4;
+    return add(1,2,3);
 }
 
-int add(int a,int b) {
+int add(int a,int b,int c) {
     return a+b;
 }
 
