@@ -1,13 +1,16 @@
-15c15,21
+15c15,27
 < all: test cpp.ps
 ---
-> all: mkjlex cuplib test
-> 
+> all: mkjlex cuplib jasminlib test
+>  
 > mkjlex:
 > 	javac JLex/Main.java
-> 
+>  
 > cuplib:
 > 	yes A | unzip java-cup-11a.jar
-> 
+>  
+> jasminlib:
+> 	yes n | unzip jasmin.jar
+>  
 > style:
 > 	astyle --style=kr cpp/*java
