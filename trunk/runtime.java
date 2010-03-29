@@ -17,17 +17,32 @@
  * author Salvo "LtWorf" Tomaselli <tiposchi@tiscali.it>
 */
 
+import java.util.Scanner;
 
 class runtime {
     /**
     Class with support methods, considered as builtins by worfcc
     */
-    //builtins=("printString","readInt","readDouble")
+    public static Scanner in = new Scanner(System.in);  
+
+
     public static void printInt(int a) {
-        System.out.println(a);
+        System.out.print(a);
     }
 
     public static void printDouble(double a) {
-        System.out.println(a);
+        System.out.print(a);
+    }
+
+    public static void printString(String a) {
+        System.out.print(a);
+    }
+
+    public static int readInt() {
+	return in.nextInt();
+    }
+    
+    public static double readDouble() {
+        return in.nextDouble();    
     }
 }

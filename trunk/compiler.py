@@ -31,7 +31,8 @@ prefix= {
         cpp.Absyn.Typeint:("i",1),
         cpp.Absyn.Typebool:("i",1),
         cpp.Absyn.Typedouble:("d",2),
-        cpp.Absyn.Typevoid:("v",0)
+        cpp.Absyn.Typevoid:("v",0),
+        cpp.Absyn.Typestrng:("Ljava/lang/String;",2)
         }
 
 class labeler:
@@ -78,9 +79,13 @@ def get_signature(f):
     asignature=[]
     for i in f.listargument_:
         p=prefix[i.type_.__class__]
-        asignature.append(prefix[i.type_.__class__][0].upper())
+        if len(prefix[i.type_.__class__][0])==1:
+            t=prefix[i.type_.__class__][0].upper()
+        else:
+            t=prefix[i.type_.__class__][0]
+        asignature.append(t)
         
-    return '%s(%s)%s' % (f.cident_, ','.join(asignature) , prefix[f.type_.__class__][0].upper())
+    return '%s(%s)%s' % (f.cident_, ''.join(asignature) , prefix[f.type_.__class__][0].upper())
     
 class cfunction():
     '''Purpose of this class is to compile a function'''
@@ -247,10 +252,11 @@ class cfunction():
         '''
     
         dic= {
-            cpp.Absyn.Eadd: "iadd",
-            cpp.Absyn.Emul: "imul",
-            cpp.Absyn.Esub: "isub",
-            cpp.Absyn.Ediv: "idiv"
+            cpp.Absyn.Eadd: "add",
+            cpp.Absyn.Emul: "mul",
+            cpp.Absyn.Esub: "sub",
+            cpp.Absyn.Ediv: "div",
+            cpp.Absyn.Emod: "rem"
         }
     
         comp_dic= {
@@ -279,7 +285,7 @@ class cfunction():
             else:
                 self.emit("iconst_0",1) #False
         elif isinstance(e,cpp.Absyn.Estrng): #String constant value
-            self.emit("ldc \"%s\""% e.string_,4) #//TODO I have no clue how big is pushing a string constant on the stack
+            self.emit("ldc \"%s\""% e.string_,2) #//TODO I have no clue how big is pushing a string constant on the stack
         elif isinstance(e,cpp.Absyn.Edbl): #Double value
             self.emit("ldc_w %lf"%e.double_,2)
         elif isinstance(e,cpp.Absyn.Eitm): #Loads Variable
@@ -366,16 +372,22 @@ class cfunction():
         
             lab1=self.lbl.getlbl()   #Getting label
         
-            print "%s trueexpr%d" % (comp_dic[e.__class__],lab1)
-            print "bipush 0"    #False
-            print "goto endexpr%d" % lab1
-            print "trueexpr%d:" % lab1
-            print "bipush 1"    #True
-            print "endexpr%d:" %lab1
+            self.emit ("%s trueexpr%d" % (comp_dic[e.__class__],lab1),-2)
+            self.emit("iconst_0",1)    #False
+            self.emit("goto endexpr%d" % lab1,0)
+            self.emit("trueexpr%d:" % lab1,0)
+            self.emit("iconst_1",1)    #True
+            
+            #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
+            self.emit("endexpr%d:" %lab1,-1)
         elif e.__class__ in dic: #Aritmetic operations
             self.compile_expr(e.expr_1)
             self.compile_expr(e.expr_2)
-            self.emit(dic[e.__class__],-1)
+            
+            p=prefix[self.inf.getinfer(e).__class__]
+                        
+            
+            self.emit("%s%s" % (p[0],dic[e.__class__]),-1)
 
 if __name__=="__main__":
     for f in range(1,len(sys.argv)):

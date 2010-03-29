@@ -1,8 +1,8 @@
 int main () {
-    printInt(fact(5));
-    return 0;
+    printInt(add(10,20));
+    return 1;
 }
 
-int fact(int a) {
-    return a+2;
+int add(int a,int b) {
+    return a+b;
 }
