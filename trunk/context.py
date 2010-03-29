@@ -26,7 +26,10 @@ class var_env:
         self.var={}
         self.c=0
         self.cx=[0,]
-    
+        self.maxc=0
+        
+    def getmax(self):
+        return self.maxc
     def get(self,ident):
         return self.var[ident]
     def push(self):
@@ -36,6 +39,8 @@ class var_env:
     def put(self,ident,inc=1):
         self.var[ident]=self.c
         self.c=self.c+inc
+        if self.c>self.maxc:
+            self.maxc=self.c
 
 class GeneralContext:
     '''This class is the general context

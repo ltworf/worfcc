@@ -30,6 +30,7 @@ prefix= {
         cpp.Absyn.Typeint:("i",1),
         cpp.Absyn.Typebool:("i",1),
         cpp.Absyn.Typedouble:("d",2),
+        cpp.Absyn.Typevoid:("v",0)
         }
 
 class labeler:
@@ -45,32 +46,64 @@ def ijvm_compile(filename):
     prog,contx,inf=typechecker.checkfile(filename)
     
     for i in prog.listdeclaration_:
-        cfunction(i,inf)
+        cfunction(i,inf,contx)
 
 
 
 class cfunction():
     '''Purpose of this class is to compile a function'''
-    def __init__(self,f,inf):
+    def __init__(self,f,inf,contx):
         '''f:   Fnct object to compile
         inf: inferred class to access the type of the expressions'''
+        self.contx=contx #Context, contains the declarations of the other functions
         
-        self.lbl=labeler()
-        self.variables=context.var_env()
+        self.lbl=labeler()  #Unique label sequence for the function
+        self.variables=context.var_env()    #Variables
         
-        self.f=f;
-        #self.opstack=0;
-        #
+        self.inf=inf
         
-        self.compile_block(f.liststatement_,inf)
+        #Inserting variables of the declaration in the context
+        self.asignature=[]
+        for i in f.listargument_:
+            p=prefix[i.type_.__class__]
+            self.variables.put(i.cident_,p[1])
+            self.asignature.append(prefix[i.type_.__class__][0].upper())
         
-    def compile_block(self,statements,inf):
+        self.f=f; #Function is retrievable
+        
+        
+        #Used to know the max operand stack size
+        self.opstack=0;
+        self.maxopstack=0;
+        self.opcodes=[]
+        
+        self.compile_block(f.liststatement_)
+        
+        #TODO optimize
+        
+        print ""
+        print ".method public static %s(%s)%s" % (f.cident_, ','.join(self.asignature) , prefix[f.type_.__class__][0].upper())
+        print ".limit locals %d" % self.variables.getmax()
+        print ".limit stack %d" % self.maxopstack
+        
+        for i in self.opcodes:
+            print i
+        print ".end method"
+        
+    def emit(self,instr,s):
+        '''Emits an instruction and calculates the stack operand size'''
+        self.opstack+=s
+        if self.opstack>self.maxopstack:
+            self.maxopstack=self.opstack
+        self.opcodes.append(instr)
+        
+    def compile_block(self,statements):
         '''This function compiles a block, or the main block of a function'''
         for i in statements:
             if isinstance(i,cpp.Absyn.Expression):    #Expression
-                self.compile_expr(i.expr_,inf)
+                self.compile_expr(i.expr_)
             
-                if not isinstance(inf.getinfer(i.expr_),cpp.Absyn.Typevoid): #If not void, we remove the return value
+                if not isinstance(self.inf.getinfer(i.expr_),cpp.Absyn.Typevoid): #If not void, we remove the return value
                     self.emit ("pop",-1)     #An expression returns a value, so we pop it now to free the stack
             elif isinstance(i,cpp.Absyn.LocalVars):   #Var declaration (multiple vars)
                 for j in i.listvitem_:
@@ -80,40 +113,40 @@ class cfunction():
                     if isinstance(j,cpp.Absyn.VarNA): #Declaration without assignment
                         self.emit("iconst_0",1)
                     else:
-                        self.compile_expr(j.expr_,inf)
+                        self.compile_expr(j.expr_)
                     self.emit("%sstore %d" % (p[0],self.variables.get(j.cident_)),-1)
             elif isinstance(i,cpp.Absyn.Block): #New context
                 self.variables.push()
-                self.compile_block(i.liststatement_,inf)
+                self.compile_block(i.liststatement_)
                 self.variables.pop()
             elif isinstance(i,cpp.Absyn.IfElse): #//TODO if
-                self.compile_expr(i.expr_,inf) #Pushing the result of the condition
+                self.compile_expr(i.expr_) #Pushing the result of the condition
             
                 lab1=self.lbl.getlbl()
             
                 self.emit( "ifeq else%d" % lab1,-1)    #If expr is false
-                self.compile_block((i.statement_1,),inf)  #True branch
+                self.compile_block((i.statement_1,))  #True branch
                 self.emit( "goto endif%d" %lab1,0)
                 self.emit( "else%d:" % lab1,0)
-                self.compile_block((i.statement_2,),inf)  #False branch
+                self.compile_block((i.statement_2,))  #False branch
                 self.emit( "endif%d:" %lab1,0)
             elif isinstance(i,cpp.Absyn.While):
                 lab1=self.lbl.getlbl()
             
                 self.emit ( "while%d:" % lab1,0)
-                self.compile_expr(i.expr_,inf)
+                self.compile_expr(i.expr_)
                 self.emit ("ifeq endwhile%d" % lab1,-1)  #If condition is false, exits
-                self.compile_block((i.statement_,),inf)  #While body
+                self.compile_block((i.statement_,))  #While body
                 self.emit ( "goto while%d" % lab1,0)
                 self.emit ( "endwhile%d:" % lab1,0)
             elif isinstance(i,cpp.Absyn.Return):
-                self.compile_expr(i.expr_,inf)
-                self.emit("%sreturn" % "i",-1) #//TODO return the correct type 
+                self.compile_expr(i.expr_)
+                
+                p=prefix[self.f.type_.__class__]
+                self.emit("%sreturn" % p[0],-1) #//TODO return the correct type 
 
-    def emit(self,instr,s):
-        print instr
 
-    def compile_expr(self,e,inf):
+    def compile_expr(self,e):
         '''
         Edbl.       Expr16          ::= Double;
         Ebool.      Expr16          ::= Bool;
@@ -204,12 +237,12 @@ class cfunction():
         elif isinstance(e,cpp.Absyn.Edbl): #Double value
             self.emit("ldc_w %lf"%e.double_,2)
         elif isinstance(e,cpp.Absyn.Eitm): #Loads Variable
-            r=prefix[inf.getinfer(e).__class__]
+            r=prefix[self.inf.getinfer(e).__class__]
             self.emit ("%sload %d" % (r[0],self.variables.get(e.cident_)),r[1])
         elif isinstance(e,cpp.Absyn.Eass): #Assignment
-            self.compile_expr(e.expr_2,inf)
+            self.compile_expr(e.expr_2)
             self.emit("dup",1) #Needed becaus assignment returns a value as well
-            p=prefix[inf.getinfer(e).__class__]
+            p=prefix[self.inf.getinfer(e).__class__]
             self.emit("%sstore %d" % (p[0],self.variables.get(e.expr_1.cident_)),-1)
         elif isinstance(e,cpp.Absyn.Eainc): #var++
             self.emit ("iload %d" % self.variables.get(e.expr_.cident_),1) #Load var on stack
@@ -229,30 +262,30 @@ class cfunction():
         
         
         elif isinstance(e,cpp.Absyn.Efun): #Function call (print) //TODO this one is completely wrong
-            self.compile_expr(e.listexpr_[0],inf)    #Only has one param
+            self.compile_expr(e.listexpr_[0])    #Only has one param
             print "invokestatic runtime/iprint(I)V"
             print "bipush 1"    #Return value of iprint
         elif isinstance(e,cpp.Absyn.Eand):  #Short-circuit and operator
             lab1=self.lbl.getlbl()
-            self.compile_expr(e.expr_1,inf)  #Evaluating 1st operand
+            self.compile_expr(e.expr_1)  #Evaluating 1st operand
             print "ifeq andfalse%d" % lab1  #If 1st operand is false
-            self.compile_expr(e.expr_2,inf)  #Evaluating 2nd operand, that will give the value to the expression
+            self.compile_expr(e.expr_2)  #Evaluating 2nd operand, that will give the value to the expression
             print "goto endand%d" % lab1
             print "andfalse%d:" % lab1
             print "bipush 0"    #push false
             print "endand%d:" % lab1
         elif isinstance(e,cpp.Absyn.Eor):  #Short-circuit or operator
             lab1=self.lbl.getlbl()
-            self.compile_expr(e.expr_1,inf)  #Evaluating 1st operand
+            self.compile_expr(e.expr_1)  #Evaluating 1st operand
             print "ifne  ortrue%d" % lab1  #expr1 true,
-            self.compile_expr(e.expr_2,inf)  #2nd operand
+            self.compile_expr(e.expr_2)  #2nd operand
             print "goto endor%d" % lab1
             print "ortrue%d:" % lab1
             print "bipush 1" #pushing the true value
             print "endor%d:" %lab1
         elif e.__class__ in comp_dic:   #Comparison
-            self.compile_expr(e.expr_1,inf) #Pushing operands
-            self.compile_expr(e.expr_2,inf)
+            self.compile_expr(e.expr_1) #Pushing operands
+            self.compile_expr(e.expr_2)
         
             lab1=self.lbl.getlbl()   #Getting label
         
@@ -263,9 +296,9 @@ class cfunction():
             print "bipush 1"    #True
             print "endexpr%d:" %lab1
         elif e.__class__ in dic: #Aritmetic operations
-            self.compile_expr(e.expr_1,inf)
-            self.compile_expr(e.expr_2,inf)
-            print dic[e.__class__]
+            self.compile_expr(e.expr_1)
+            self.compile_expr(e.expr_2)
+            self.emit(dic[e.__class__],-1)
 
 if __name__=="__main__":
     for f in range(1,len(sys.argv)):
