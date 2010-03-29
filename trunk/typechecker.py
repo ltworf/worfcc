@@ -156,8 +156,9 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
             if not isinstance(inf,cpp.Absyn.Typebool):
                 err.error("Condition in if must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
             #has_return will be true if both of the branches contains a return
-            has_return=chk_block([i.statement_1,],contx,False,return_,t_inf) #Check the instructions in the if
-            has_return=has_return and chk_block([i.statement_2,],contx,False,return_,t_inf) #Check the instructions in the else
+            has_return1=chk_block((i.statement_1,),contx,False,return_,t_inf) #Check the instructions in the if
+            has_return2=chk_block((i.statement_2,),contx,False,return_,t_inf)
+            has_return=has_return1 and has_return2 #Check the instructions in the else
 
         #Disallow statements after the return
         if has_return and index != len(statements)-1: 

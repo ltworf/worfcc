@@ -38,7 +38,7 @@ LocalVars.	Statement		::=	Type [VItem] ";";
 
 Nop.		Statement		::=	";";							--Allow empty instruction
 Return.		Statement		::=	"return" Expr ";";
-VoidReturn. Statement       ::= "return" ";";                   --Added to allow void functions to have a return. It was not required by the assignment (I spoke with the professor)
+VoidReturn. Statement       ::= "return" ";";
 Block.		Statement		::=	"{" [Statement] "}";
 While.		Statement		::=	"while" "(" Expr ")" Statement;
 Expression.	Statement		::=	Expr ";" ;

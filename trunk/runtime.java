@@ -27,15 +27,15 @@ class runtime {
 
 
     public static void printInt(int a) {
-        System.out.print(a);
+        System.out.println(a);
     }
 
     public static void printDouble(double a) {
-        System.out.print(a);
+        System.out.println(a);
     }
 
     public static void printString(String a) {
-        System.out.print(a);
+        System.out.println(a);
     }
 
     public static int readInt() {

@@ -57,6 +57,7 @@ def ijvm_compile(filename):
         print c.fcompile()
 
 def class_header(classname):
+    '''Prints the header of the jasmin file'''
     r=''
     r+=".class public %s\n" % classname
     r+=".super java/lang/Object\n"
@@ -76,6 +77,7 @@ def class_header(classname):
     return r
 
 def get_signature(f):
+    '''Returns the signature of a function'''
     asignature=[]
     for i in f.listargument_:
         p=prefix[i.type_.__class__]
@@ -91,7 +93,9 @@ class cfunction():
     '''Purpose of this class is to compile a function'''
     def __init__(self,f,inf,contx,classname):
         '''f:   Fnct object to compile
-        inf: inferred class to access the type of the expressions'''
+        inf: inferred class to access the type of the expressions
+        contx is the context that contains the other functions
+        classname is the name of the class itself'''
         self.contx=contx #Context, contains the declarations of the other functions
         
         self.classname=classname
@@ -153,16 +157,23 @@ class cfunction():
         for i in statements:
             if isinstance(i,cpp.Absyn.Expression):    #Expression
                 self.compile_expr(i.expr_)
-            
-                if not isinstance(self.inf.getinfer(i.expr_),cpp.Absyn.Typevoid): #If not void, we remove the return value
+                qq=self.inf.getinfer(i.expr_)
+                
+                if isinstance(qq,cpp.Absyn.Typedouble): #If boolean, remove two words
+                    self.emit("pop2",-2)
+                elif not isinstance(qq,cpp.Absyn.Typevoid): #If not void, we remove the return value
                     self.emit ("pop",-1)     #An expression returns a value, so we pop it now to free the stack
+                    
             elif isinstance(i,cpp.Absyn.LocalVars):   #Var declaration (multiple vars)
                 for j in i.listvitem_:
                     p=prefix[i.type_.__class__]
                     self.variables.put(j.cident_,p[1])
                 
                     if isinstance(j,cpp.Absyn.VarNA): #Declaration without assignment
-                        self.emit("iconst_0",1)
+                        if isinstance(i.type_,cpp.Absyn.Typedouble):
+                            self.emit("ldc_w 0.0",2)
+                        else:
+                            self.emit("iconst_0",1)
                     else:
                         self.compile_expr(j.expr_)
                     self.emit("%sstore %d" % (p[0],self.variables.get(j.cident_)),-1)
@@ -190,52 +201,23 @@ class cfunction():
                 self.compile_block((i.statement_,))  #While body
                 self.emit ( "goto while%d" % lab1,0)
                 self.emit ( "endwhile%d:" % lab1,0)
+            elif isinstance(i,cpp.Absyn.VoidReturn):
+                self.emit("return",0)
             elif isinstance(i,cpp.Absyn.Return):
                 self.compile_expr(i.expr_)
                 
                 p=prefix[self.f.type_.__class__]
-                self.emit("%sreturn" % p[0],-1) #//TODO return the correct type 
+                self.emit("%sreturn" % p[0],-1)
 
 
     def compile_expr(self,e):
         '''
         Edbl.       Expr16          ::= Double;
-        Ebool.      Expr16          ::= Bool;
-        Eitm.       Expr16          ::= CIdent; 
-        Efun.       Expr15          ::= CIdent "(" [Expr] ")";
-        Eainc.      Expr14          ::= Expr15 "++";
-        Eadec.      Expr14          ::= Expr15 "--";
-        Epinc.      Expr13          ::= "++" Expr14;
-        Epdec.      Expr13          ::= "--" Expr14;
-    
-        ENeg.       Expr12 ::= "-" Expr13 ;
-        ENot.       Expr12 ::= "!" Expr13 ;
-    
-    
-        Emod.       Expr11          ::= Expr11 "%" Expr12;  --TODO
-    
         Eand.       Expr4           ::= Expr4 "&&" Expr5;
         Eor.        Expr3           ::= Expr3 "||" Expr4;
-        Eass.       Expr2           ::= Expr3 "=" Expr2;        --I think this was wrong in lab1
-    
-        Edbl.       Expr16          ::= Double;
-        Estrng.     Expr16          ::= String;
-        Eitm.       Expr16          ::= CIdent; 
-        Efun.       Expr15          ::= CIdent "(" [Expr] ")";
-        Eainc.      Expr14          ::= Expr15 "++";
-        Eadec.      Expr14          ::= Expr15 "--";
-        Epinc.      Expr13          ::= "++" Expr14;
-        Epdec.      Expr13          ::= "--" Expr14;
     
         ENeg.       Expr12 ::= "-" Expr13 ;
         ENot.       Expr12 ::= "!" Expr13 ;
-    
-    
-        Emul.       Expr11          ::= Expr11 "*" Expr12;
-        Ediv.       Expr11          ::= Expr11 "/" Expr12;
-        Emod.       Expr11          ::= Expr11 "%" Expr12;  --TODO
-        Eadd.       Expr10          ::= Expr10 "+" Expr11;
-        Esub.       Expr10          ::= Expr10 "-" Expr11;
     
         Elt.        Expr9           ::= Expr9 "<" Expr10;
         Egt.        Expr9           ::= Expr9 ">" Expr10;
@@ -243,12 +225,6 @@ class cfunction():
         Eegt.       Expr9           ::= Expr9 ">=" Expr10;
         Eeql.       Expr8           ::= Expr8 "==" Expr9;
         Edif.       Expr8           ::= Expr8 "!=" Expr9;
-    
-    
-        Eand.       Expr4           ::= Expr4 "&&" Expr5;
-        Eor.        Expr3           ::= Expr3 "||" Expr4;
-        Eass    .       Expr2           ::= Expr3 "=" Expr2;        --I think this was wrong in lab1
-    
         '''
     
         dic= {
