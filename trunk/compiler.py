@@ -304,12 +304,20 @@ class cfunction():
             
             self.emit("invokestatic %s/%s" % (cname,get_signature(f)),before-after+p[1])
             
+        elif isinstance(e,cpp.Absyn.ENot):
+            self.compile_expr(e.expr_)
+            l=self.lbl.getlbl()
             
+            l1="negation_t%d" %l 
+            l2="negation_f%d" %l
+            self.emit("ifne %s"%l2,-1)
+            self.emit("iconst_1",1)
+            self.emit("goto %s" % l1,0)
+            self.emit("%s:" % l2,0)
+            self.emit("iconst_0",1)
             
-            
-            
-            
-            
+            #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
+            self.emit("%s:"%l1,-1)
             
         elif isinstance(e,cpp.Absyn.ENeg):
             self.compile_expr(e.expr_)

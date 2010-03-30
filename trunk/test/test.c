@@ -1,30 +1,33 @@
 int main () {
-    printString("Insert a ");
-    int a=readInt();
-      
-    printInt(-fact(a));
-           
-    return a;
+    bool a=true;
+    
+    if (a) printString("true");
+    else printString("false");
+    
+    if (!a) printString("true");
+    else printString("false");
+    
+    return 1;
 }
 
 int fact(int n) {
     
     bool c=n<3;
-    //printBool(c);
-    
+   
     if (n<3) {
         //printInt(n);
         return n;
     }
     else {
         ;
-        //printInt(n);
-        //n=n*fact(n-1);
-        //printInt(n);
-        //printString("no");
-        //
-        //return n;
     }
     return n*fact(n-1);
     
+}
+
+int test() {
+    if (true)
+        return 1;
+    else;
+        return 0; 
 }
