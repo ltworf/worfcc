@@ -1,19 +1,13 @@
 int main () {
     
-    int a;
-    while ((a=readInt())<100) {
-        printString("ancora no");
+    int a=4;
+    printInt(a);
+    
+    {
+        int a=12;
+        printInt(a);
     }
+    printInt(a);
     
-    if (a%2==0) {
-    
-        printString("pari");
-        return 0;
-    } else {
-        printString("dispari");
-        return 0;
-    }
-    
-    
-       
+    return a;
 }

@@ -23,7 +23,10 @@ class var_env:
     '''This class is used for the last exercise'''
     
     def __init__(self):
-        self.var={}
+        
+        self.contexts=[]
+        self.contexts.append(Context(""))
+        
         self.c=0
         self.cx=[0,]
         self.maxc=0
@@ -31,16 +34,24 @@ class var_env:
     def getmax(self):
         return self.maxc+1 #The +1 is for 2 words values
     def get(self,ident):
-        return self.var[ident]
+        for i in range(len(self.contexts)-1,-1,-1):
+            try:
+                return self.contexts[i].get(ident)
+            except:
+                pass
     def push(self):
+        self.contexts.append(Context(None))
+        
         self.cx.append(self.c)
     def pop(self):
+        self.contexts.pop()
         self.c=self.cx.pop()
     def put(self,ident,inc=1):
         '''Puts a variable into the context'''
         
+        self.contexts[len(self.contexts)-1].put(ident,self.c-1+inc)
+        
         #The -1+inc is required to assign c if a variable is 1 word and to assign c+1 if the variable is two words
-        self.var[ident]=self.c-1+inc
         self.c=self.c+inc
         if self.c>self.maxc:
             self.maxc=self.c
