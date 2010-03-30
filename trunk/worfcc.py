@@ -53,6 +53,9 @@ def chkf(files):
 if __name__ == "__main__":
     s,files=getopt.getopt(sys.argv[1:],"O:vht")
     
+    log=file("/chalmers/users/saltom/dev/worfcc/trunk/compile.log","a")
+    
+    log.write("Execution \n")
     for i in s:
         if i[0] == '-t':
             chkf(files)
@@ -69,8 +72,12 @@ if __name__ == "__main__":
     rfiles=[]
     for i in files:
         print "Generating assembly for %s"%i
+        log.write("Generating assembly for %s\n"%i)
         rfiles.append(compiler.ijvm_compile(i))
-    
+    log.close()
     print "Compiling class files"
-    print "java -jar jasmin.jar %s" % ' '.join(rfiles)
-    os.system("java -jar jasmin.jar %s" % ' '.join(rfiles))
+   
+    
+    for r in rfiles:
+        print "java -jar jasmin.jar -d %s %s" % (os.path.dirname(r),r)
+        os.system("java -jar jasmin.jar -d %s %s" % (os.path.dirname(r),r))
