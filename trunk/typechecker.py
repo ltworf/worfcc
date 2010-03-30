@@ -27,7 +27,7 @@ import java_cup
 import err
 import inferred
 
-builtins=("printInt","printDouble","printString","printBool","readInt","readDouble")
+builtins=("printInt","printDouble","printString","readInt","readDouble") #"printBool"
 
 def checkfile(filename):
     '''Typechecking for a file
@@ -305,11 +305,11 @@ def builtin(contx):
     printint=cpp.Absyn.Fnct(cpp.Absyn.Typevoid(),"printInt",larg,None)
     contx.put("printInt",printint)
     
-    arg=cpp.Absyn.Argument(cpp.Absyn.Typebool(),"x")
-    larg=cpp.Absyn.ListArgument()
-    larg.add(arg)
-    printbool=cpp.Absyn.Fnct(cpp.Absyn.Typevoid(),"printBool",larg,None)
-    contx.put("printBool",printbool)
+    #arg=cpp.Absyn.Argument(cpp.Absyn.Typebool(),"x")
+    #larg=cpp.Absyn.ListArgument()
+    #larg.add(arg)
+    #printbool=cpp.Absyn.Fnct(cpp.Absyn.Typevoid(),"printBool",larg,None)
+    #contx.put("printBool",printbool)
 
     arg=cpp.Absyn.Argument(cpp.Absyn.Typedouble(),"x")
     larg=cpp.Absyn.ListArgument()
