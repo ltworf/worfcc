@@ -175,12 +175,13 @@ class cfunction():
             elif isinstance(i,cpp.Absyn.LocalVars):   #Var declaration (multiple vars)
                 for j in i.listvitem_:
                     p=prefix[i.type_.__class__]
-                    self.variables.put(j.cident_,p[1])
                 
                     if isinstance(j,cpp.Absyn.VarNA): #Declaration without assignment
                         self.emit("%sconst_0"%p[0],p[1])
                     else:
                         self.compile_expr(j.expr_)
+                        
+                    self.variables.put(j.cident_,p[1])
                     self.emit("%sstore %d" % (p[0],self.variables.get(j.cident_)),-1)
             elif isinstance(i,cpp.Absyn.Block): #New context
                 self.variables.push()
@@ -199,7 +200,9 @@ class cfunction():
                 else: #Simple if
                     if self.inf.getinfer(i.expr_)==True:
                         self.compile_block((i.statement_,))  #True branch
-                    continue
+                        continue
+                    elif self.inf.getinfer(i.expr_)==False:
+                        continue
                 
                 #Normal code generation
                 self.compile_expr(i.expr_) #Pushing the result of the condition
