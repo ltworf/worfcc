@@ -24,6 +24,7 @@ import sys
 import cpp
 import context
 import inferred
+import improve
 import os.path
 
 
@@ -130,8 +131,7 @@ class cfunction():
         
         self.compile_block(self.f.liststatement_)
         
-        
-        #TODO optimize
+        self.opcodes=improve.improve(self.opcodes)
         
         r='\n'
         r+= ".method public static %s\n" % get_signature(self.f)

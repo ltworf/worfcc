@@ -1,2 +1,8 @@
+Requirements
+bnfc
+java 1.6
+
+The rest is self-contained
+
 ./gencode
   Will generate the needed missing classes and run the makefile

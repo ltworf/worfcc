@@ -1,45 +1,7 @@
 int main () {
-    double a=0.0, b=1.0;
+    int a,b,c,d;
     
-    if (a==b) printString("true");
-    else printString("false");
-    
-    if (a!=b) printString("true");
-    else printString("false");
-    
-    if (a>b) printString("true");
-    else printString("false");
-    
-    if (a>=b) printString("true");
-    else printString("false");
-    
-    if (a<b) printString("true");
-    else printString("false");
-    
-    if (a<=b) printString("true");
-    else printString("false");
-    
-    
-    b=0.0;
-    
-    if (a==b) printString("true");
-    else printString("false");
-    
-    if (a!=b) printString("true");
-    else printString("false");
-    
-    if (a>b) printString("true");
-    else printString("false");
-    
-    if (a>=b) printString("true");
-    else printString("false");
-    
-    if (a<b) printString("true");
-    else printString("false");
-    
-    if (a<=b) printString("true");
-    else printString("false");
-    
+    a=1+(b=c=d=5*3);
     return 1;
 }
 
@@ -58,9 +20,19 @@ int fact(int n) {
     
 }
 
-int test() {
-    if (true)
+void test() {
+    /*int c=12;
+    
+    if (true) {
+        int a,b;
+        bool d=a>b;
         return 1;
-    else;
-        return 0; 
+    }
+    else {
+        if (false) {
+            c--;
+        }
+        else c++;
+        return 0;
+} */
 }
