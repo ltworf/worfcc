@@ -23,6 +23,7 @@ import sys
 import getopt
 import typechecker
 import compiler
+import options
 
 version="0.1"
 
@@ -39,6 +40,7 @@ def printhelp(code=0):
     print "  -v            Print version and exits"
     print "  -h            Print this help and exits"
     print "  -t            Only performs typechecking"
+    print "  -O            Optimization level"
 
     sys.exit(code)
 
@@ -48,7 +50,7 @@ def chkf(files):
         print "OK: %s"%i
 
 if __name__ == "__main__":
-    s,files=getopt.getopt(sys.argv[1:],"vht")
+    s,files=getopt.getopt(sys.argv[1:],"O:vht")
     
     for i in s:
         if i[0] == '-t':
@@ -58,7 +60,11 @@ if __name__ == "__main__":
             printhelp()
         elif i[0]== '-v':
             printversion()
+        elif i[0]== '-O':
+            options.improvementLevel=int(i[1])
 
     pass #Compile the files
     for i in files:
-        compiler.ijvm_compile(i)
+        print "Generating assembly for %s"%i,
+        rfile=compiler.ijvm_compile(i)
+        print "done"

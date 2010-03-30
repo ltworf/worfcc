@@ -10,7 +10,7 @@ TrueLit.	Bool			::=	"true";		--Naming it boolean it won't compile
 FalseLit.	Bool			::=	"false";
 
 Typestrng. Type            ::= "string"; --Maybe someone will not like this?
-Typebool.	Type			::=	"bool";
+Typebool.	Type			::=	"boolean";
 Typedouble.	Type			::=	"double";
 Typeint.	Type			::=	"int";
 Typevoid.	Type			::=	"void";

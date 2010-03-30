@@ -19,6 +19,8 @@
 # 
 # author Salvo "LtWorf" Tomaselli <tiposchi@tiscali.it>
 
+import options
+
 jumps=("if_icmpgt","if_icmplt","if_icmple","if_icmpge","if_icmpeq","if_icmpne","ifgt","iflt","ifle","ifge","ifeq","ifne","goto")
 
 def reduce_instruction(i):
@@ -198,7 +200,13 @@ def remove_dup_pop(code):
 def improve(code):
     '''Returns an improved version of the code'''
     
-    remove_dup_pop(code)
+    o=options.improvementLevel
+    if o<1:
+        print "Warning, some optimizations are required for a proper compilation"
+        return code
+    
+    if o>1:
+        remove_dup_pop(code)
     
     #Improvements on the blocks
     #This will also convert the instructions into their shorter version

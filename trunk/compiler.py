@@ -51,11 +51,16 @@ def ijvm_compile(filename):
     #Gets the name of the class
     cname='.'.join(os.path.basename(filename).split('.')[:-1])
     
+    dname='%s/%s.j' % (os.path.dirname(filename),cname)
     
-    print class_header(cname)
+    f=file(dname,"w")
+    
+    f.write( class_header(cname))
     for i in prog.listdeclaration_:
         c=cfunction(i,inf,contx,cname)
-        print c.fcompile()
+        f.write(c.fcompile())
+    f.close()
+    return dname
 
 def class_header(classname):
     '''Prints the header of the jasmin file'''
