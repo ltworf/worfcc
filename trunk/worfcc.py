@@ -24,6 +24,7 @@ import getopt
 import typechecker
 import compiler
 import options
+import os
 
 version="0.1"
 
@@ -63,8 +64,13 @@ if __name__ == "__main__":
         elif i[0]== '-O':
             options.improvementLevel=int(i[1])
 
-    pass #Compile the files
+    #Compile the files
+    
+    rfiles=[]
     for i in files:
-        print "Generating assembly for %s"%i,
-        rfile=compiler.ijvm_compile(i)
-        print "done"
+        print "Generating assembly for %s"%i
+        rfiles.append(compiler.ijvm_compile(i))
+    
+    print "Compiling class files"
+    print "java -jar jasmin.jar %s" % ' '.join(rfiles)
+    os.system("java -jar jasmin.jar %s" % ' '.join(rfiles))

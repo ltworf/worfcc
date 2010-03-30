@@ -103,13 +103,19 @@ class codeblock:
             s=i.split(' ')
             if s[0] in jumps:
                 self.jump=s[1]
+                if (s[1],1) in labeled:
+                    labeled[(s[1],1)].prevjump=self
                 labeled[(s[1],1)]=self
                 self.next=codeblock(statements,labeled,self)
             
             elif i.endswith(':'):#It is a label
                 if first:#Naming the block
                     labeled[(i[:-1],0)]=self
-                    self.prevjump=labeled[(i[:-1],1)]
+                    
+                    if (i[:-1],1) in labeled:
+                        self.prevjump=labeled[(i[:-1],1)]
+                    else:
+                        labeled[(i[:-1],1)]=self
                 else:
                     #Putting the label back to its place
                     statements.insert(0,i)
