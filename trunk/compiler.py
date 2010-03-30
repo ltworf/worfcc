@@ -188,17 +188,29 @@ class cfunction():
                 self.variables.pop()
             elif isinstance(i,cpp.Absyn.If) or isinstance(i,cpp.Absyn.IfElse): #//TODO if
                 
-                if self.inf.getinfer(i.expr_)==True:
-                    self.compile_block((i.statement_1,))  #True branch
+                #Code generation if the condition is constant
+                if isinstance(i,cpp.Absyn.IfElse):
+                    if self.inf.getinfer(i.expr_)==True:
+                        self.compile_block((i.statement_1,))  #True branch
+                        continue
+                    elif self.inf.getinfer(i.expr_)==False:
+                        self.compile_block((i.statement_2,))  #True branch
+                        continue
+                else: #Simple if
+                    if self.inf.getinfer(i.expr_)==True:
+                        self.compile_block((i.statement_,))  #True branch
                     continue
-                elif self.inf.getinfer(i.expr_)==False:
-                    self.compile_block((i.statement_2,))  #True branch
-                    continue
-                    
+                
+                #Normal code generation
                 self.compile_expr(i.expr_) #Pushing the result of the condition
                 lab1=self.lbl.getlbl()
                 self.emit( "ifeq else%d" % lab1,-1)    #If expr is false
-                self.compile_block((i.statement_1,))  #True branch
+                
+                if isinstance(i,cpp.Absyn.IfElse):
+                    self.compile_block((i.statement_1,))  #True branch
+                else:
+                    self.compile_block((i.statement_,))  #True branch
+                    
                 self.emit( "goto endif%d" %lab1,0)
                 self.emit( "else%d:" % lab1,0)
                 
@@ -209,6 +221,7 @@ class cfunction():
             elif isinstance(i,cpp.Absyn.While):
                 lab1=self.lbl.getlbl()
                 
+                #Code generation if the condition is constant
                 if self.inf.getinfer(i.expr_)==True:
                     self.emit ( "while%d:" % lab1,0)
                     self.compile_block((i.statement_,))  #While body
@@ -218,6 +231,7 @@ class cfunction():
                     self.emit("nop",0)
                     continue
                 
+                #Normal code generation
                 self.emit ( "while%d:" % lab1,0)
                 self.compile_expr(i.expr_)
                 self.emit ("ifeq endwhile%d" % lab1,-1)  #If condition is false, exits
