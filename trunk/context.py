@@ -29,7 +29,7 @@ class var_env:
         self.maxc=0
         
     def getmax(self):
-        return self.maxc
+        return self.maxc+1 #The +1 is for 2 words values
     def get(self,ident):
         return self.var[ident]
     def push(self):
@@ -37,7 +37,10 @@ class var_env:
     def pop(self):
         self.c=self.cx.pop()
     def put(self,ident,inc=1):
-        self.var[ident]=self.c
+        '''Puts a variable into the context'''
+        
+        #The -1+inc is required to assign c if a variable is 1 word and to assign c+1 if the variable is two words
+        self.var[ident]=self.c-1+inc
         self.c=self.c+inc
         if self.c>self.maxc:
             self.maxc=self.c

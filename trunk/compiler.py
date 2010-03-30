@@ -159,7 +159,7 @@ class cfunction():
                 self.compile_expr(i.expr_)
                 qq=self.inf.getinfer(i.expr_)
                 
-                if isinstance(qq,cpp.Absyn.Typedouble): #If boolean, remove two words
+                if isinstance(qq,cpp.Absyn.Typedouble): #If double, remove two words
                     self.emit("pop2",-2)
                 elif not isinstance(qq,cpp.Absyn.Typevoid): #If not void, we remove the return value
                     self.emit ("pop",-1)     #An expression returns a value, so we pop it now to free the stack
@@ -209,19 +209,8 @@ class cfunction():
 
     def compile_expr(self,e):
         '''
-        Edbl.       Expr16          ::= Double;
         Eand.       Expr4           ::= Expr4 "&&" Expr5;
         Eor.        Expr3           ::= Expr3 "||" Expr4;
-    
-        ENeg.       Expr12 ::= "-" Expr13 ;
-        ENot.       Expr12 ::= "!" Expr13 ;
-    
-        Elt.        Expr9           ::= Expr9 "<" Expr10;
-        Egt.        Expr9           ::= Expr9 ">" Expr10;
-        Eelt.       Expr9           ::= Expr9 "<=" Expr10;
-        Eegt.       Expr9           ::= Expr9 ">=" Expr10;
-        Eeql.       Expr8           ::= Expr8 "==" Expr9;
-        Edif.       Expr8           ::= Expr8 "!=" Expr9;
         '''
     
         dic= {
@@ -240,6 +229,15 @@ class cfunction():
             cpp.Absyn.Eeql: "if_icmpeq",
             cpp.Absyn.Edif: "if_icmpne"
         }
+        
+        dcomp_dic = {
+                cpp.Absyn.Egt: "ifgt",
+                cpp.Absyn.Elt: "iflt",
+                cpp.Absyn.Eelt: "ifle",
+                cpp.Absyn.Eegt: "ifge",
+                cpp.Absyn.Eeql: "ifeq",
+                cpp.Absyn.Edif: "ifne"
+        }
     
         if isinstance(e,cpp.Absyn.Eint): #Integer value
             self.emit("ldc %d" % e.integer_,1)
@@ -251,7 +249,7 @@ class cfunction():
         elif isinstance(e,cpp.Absyn.Estrng): #String constant value
             self.emit("ldc \"%s\""% e.string_,2) #//TODO I have no clue how big is pushing a string constant on the stack
         elif isinstance(e,cpp.Absyn.Edbl): #Double value
-            self.emit("ldc_w %lf"%e.double_,2)
+            self.emit("ldc2_w %lf"%e.double_,2)
         elif isinstance(e,cpp.Absyn.Eitm): #Loads Variable
             r=prefix[self.inf.getinfer(e).__class__]
             self.emit ("%sload %d" % (r[0],self.variables.get(e.cident_)),r[1])
@@ -278,11 +276,6 @@ class cfunction():
         elif isinstance(e,cpp.Absyn.Epdec): #--var
             self.emit("iinc %d -1" % self.variables.get(e.expr_.cident_),0) #increment variable
             self.emit("iload %d" % self.variables.get(e.expr_.cident_),1) #Load var on stack    
-        
-        
-        
-        
-        
         elif isinstance(e,cpp.Absyn.Efun): #Function call
             #Emits code for the params
             before=self.opstack
@@ -294,13 +287,11 @@ class cfunction():
             
             p=prefix[f.type_.__class__]
             
-            
             #Distinguishes between builtin functions and normal ones. I am not proud of this code.
             if e.cident_ in typechecker.builtins:
                 cname="runtime"
             else:
                 cname=self.classname
-            
             
             self.emit("invokestatic %s/%s" % (cname,get_signature(f)),before-after+p[1])
             
@@ -348,7 +339,7 @@ class cfunction():
             
             #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
             self.emit("endor%d:" %lab1,-1)
-        elif e.__class__ in comp_dic:   #Comparison
+        elif e.__class__ in comp_dic and self.inf.getinfer(e.expr_1).__class__ in (cpp.Absyn.Typebool, cpp.Absyn.Typeint):   #Comparison int, boolean
             self.compile_expr(e.expr_1) #Pushing operands
             self.compile_expr(e.expr_2)
         
@@ -362,6 +353,23 @@ class cfunction():
             
             #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
             self.emit("endexpr%d:" %lab1,-1)
+        elif e.__class__ in dcomp_dic and isinstance(self.inf.getinfer(e.expr_1),cpp.Absyn.Typedouble): #Dobule comparison
+            self.compile_expr(e.expr_1) #Pushing operands
+            self.compile_expr(e.expr_2)
+            self.emit("dcmpg",-3)
+            
+            l=self.lbl.getlbl()
+            l1="doublecomp%d" % l
+            l2="enddoublecomp%d" % l
+            
+            self.emit("%s %s" % (dcomp_dic[e.__class__],l1),-1)
+            self.emit("iconst_0",1)    #False
+            self.emit("goto %s"%l2,0)
+            self.emit("%s:"%l1,0)
+            self.emit("iconst_1",1)    #True
+            
+            #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
+            self.emit("%s:"%l2,-1)
         elif e.__class__ in dic: #Aritmetic operations
             self.compile_expr(e.expr_1)
             self.compile_expr(e.expr_2)

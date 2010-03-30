@@ -1,10 +1,43 @@
 int main () {
-    bool a=true;
+    double a=0.0, b=1.0;
     
-    if (a) printString("true");
+    if (a==b) printString("true");
     else printString("false");
     
-    if (!a) printString("true");
+    if (a!=b) printString("true");
+    else printString("false");
+    
+    if (a>b) printString("true");
+    else printString("false");
+    
+    if (a>=b) printString("true");
+    else printString("false");
+    
+    if (a<b) printString("true");
+    else printString("false");
+    
+    if (a<=b) printString("true");
+    else printString("false");
+    
+    
+    b=0.0;
+    
+    if (a==b) printString("true");
+    else printString("false");
+    
+    if (a!=b) printString("true");
+    else printString("false");
+    
+    if (a>b) printString("true");
+    else printString("false");
+    
+    if (a>=b) printString("true");
+    else printString("false");
+    
+    if (a<b) printString("true");
+    else printString("false");
+    
+    if (a<=b) printString("true");
     else printString("false");
     
     return 1;
