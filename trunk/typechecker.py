@@ -89,6 +89,18 @@ def check_fnct(f,contx,t_inf):
     
     contx.pop()     #Removing the context
 
+def check_const_expr(i,t_inf,contx):
+    #Check if the condition is a boolean literal.. bah
+    if isinstance(i.expr_,cpp.Absyn.Ebool):
+        print "WARNING: using constants in condition is a very poor way of programming"
+        if isinstance (i.expr_.bool_,cpp.Absyn.TrueLit):
+            t_inf.putinfer(i.expr_,True)
+        else:
+            t_inf.putinfer(i.expr_,False)
+        return cpp.Absyn.Typebool()
+    else:
+        return infer(i.expr_,contx,t_inf)
+
 def chk_block(statements,contx,new_contx,return_,t_inf):
     '''Checks a block. A block can be a function.
     statements          list of the statements in the block (order is important)
@@ -140,25 +152,48 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
         elif isinstance(i,cpp.Absyn.Expression):    #Expression
             infer(i.expr_,contx,t_inf)
         elif isinstance(i,cpp.Absyn.While):    #While loop
-            inf = infer(i.expr_,contx,t_inf)
+            inf=check_const_expr(i,t_inf,contx)
+            
             if not isinstance(inf,cpp.Absyn.Typebool):
                 err.error("Condition in while must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
             #Check while's statement in the same context, as a list of one item.
             # If it is a block, another recoursive call will create the new context
-            chk_block([i.statement_,],contx,False,return_,t_inf)#Check the instructions
+            r=chk_block([i.statement_,],contx,False,return_,t_inf)#Check the instructions
+            
+            if t_inf.getinfer(i.expr_)==True:
+                has_return=r
+            
         elif isinstance(i,cpp.Absyn.If):#If without else
-            inf = infer(i.expr_,contx,t_inf)
+            inf=check_const_expr(i,t_inf,contx)
+                
             if not isinstance(inf,cpp.Absyn.Typebool):
                 err.error("Condition in if must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
-            chk_block([i.statement_,],contx,False,return_,t_inf)#Check the instructions
+            r=chk_block([i.statement_,],contx,False,return_,t_inf)#Check the instructions
+            
+            #Consider as always returning if expression is true
+            if t_inf.getinfer(i.expr_)==True:
+                q=True
+            else:
+                q=False
+                
+            has_return=q and r
+                
+            
         elif isinstance(i,cpp.Absyn.IfElse):    #if else
-            inf = infer(i.expr_,contx,t_inf)
+            inf=check_const_expr(i,t_inf,contx)
+            
             if not isinstance(inf,cpp.Absyn.Typebool):
                 err.error("Condition in if must be bool, got "+ err.printabletype(inf) + " instead" ,contx)
             #has_return will be true if both of the branches contains a return
             has_return1=chk_block((i.statement_1,),contx,False,return_,t_inf) #Check the instructions in the if
             has_return2=chk_block((i.statement_2,),contx,False,return_,t_inf)
-            has_return=has_return1 and has_return2 #Check the instructions in the else
+            
+            if t_inf.getinfer(i.expr_)==True:
+                has_return=has_return1
+            elif t_inf.getinfer(i.expr_)==False:
+                has_return=has_return2
+            else:
+                has_return=has_return1 and has_return2 #Check the instructions in the else
 
         #Disallow statements after the return
         if has_return and index != len(statements)-1: 

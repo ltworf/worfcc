@@ -53,7 +53,7 @@ def chkf(files):
 if __name__ == "__main__":
     s,files=getopt.getopt(sys.argv[1:],"O:vht")
     
-    log=file("/chalmers/users/saltom/dev/worfcc/trunk/compile.log","a")
+    log=file("compile.log","a")
     
     log.write("Execution \n")
     for i in s:

@@ -159,6 +159,9 @@ class cfunction():
         
     def compile_block(self,statements):
         '''This function compiles a block, or the main block of a function'''
+        if len(statements)==0:
+            self.emit("nop",0)
+            
         for i in statements:
             if isinstance(i,cpp.Absyn.Expression):    #Expression
                 self.compile_expr(i.expr_)
@@ -183,20 +186,38 @@ class cfunction():
                 self.variables.push()
                 self.compile_block(i.liststatement_)
                 self.variables.pop()
-            elif isinstance(i,cpp.Absyn.IfElse): #//TODO if
+            elif isinstance(i,cpp.Absyn.If) or isinstance(i,cpp.Absyn.IfElse): #//TODO if
+                
+                if self.inf.getinfer(i.expr_)==True:
+                    self.compile_block((i.statement_1,))  #True branch
+                    continue
+                elif self.inf.getinfer(i.expr_)==False:
+                    self.compile_block((i.statement_2,))  #True branch
+                    continue
+                    
                 self.compile_expr(i.expr_) #Pushing the result of the condition
-            
                 lab1=self.lbl.getlbl()
-            
                 self.emit( "ifeq else%d" % lab1,-1)    #If expr is false
                 self.compile_block((i.statement_1,))  #True branch
                 self.emit( "goto endif%d" %lab1,0)
                 self.emit( "else%d:" % lab1,0)
-                self.compile_block((i.statement_2,))  #False branch
+                
+                if isinstance(i,cpp.Absyn.IfElse):
+                    self.compile_block((i.statement_2,))  #False branch
+                    
                 self.emit( "endif%d:" %lab1,0)
             elif isinstance(i,cpp.Absyn.While):
                 lab1=self.lbl.getlbl()
-            
+                
+                if self.inf.getinfer(i.expr_)==True:
+                    self.emit ( "while%d:" % lab1,0)
+                    self.compile_block((i.statement_,))  #While body
+                    self.emit ( "goto while%d" % lab1,0)
+                    continue
+                elif self.inf.getinfer(i.expr_)==False:
+                    self.emit("nop",0)
+                    continue
+                
                 self.emit ( "while%d:" % lab1,0)
                 self.compile_expr(i.expr_)
                 self.emit ("ifeq endwhile%d" % lab1,-1)  #If condition is false, exits
