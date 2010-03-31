@@ -33,7 +33,7 @@ prefix= {
         cpp.Absyn.Typebool:("i",1),
         cpp.Absyn.Typedouble:("d",2),
         cpp.Absyn.Typevoid:("v",0),
-        cpp.Absyn.Typestrng:("Ljava/lang/String;",2)
+        cpp.Absyn.Typestrng:("Ljava/lang/String;",1)
         }
 
 class labeler:
@@ -160,6 +160,7 @@ class cfunction():
     def compile_block(self,statements):
         '''This function compiles a block, or the main block of a function'''
         if len(statements)==0:
+            print "WARNING: blocks are supposed to contain code, not to create decorations"
             self.emit("nop",0)
             
         for i in statements:
@@ -187,7 +188,7 @@ class cfunction():
                 self.variables.push()
                 self.compile_block(i.liststatement_)
                 self.variables.pop()
-            elif isinstance(i,cpp.Absyn.If) or isinstance(i,cpp.Absyn.IfElse): #//TODO if
+            elif isinstance(i,cpp.Absyn.If) or isinstance(i,cpp.Absyn.IfElse):
                 
                 #Code generation if the condition is constant
                 if isinstance(i,cpp.Absyn.IfElse):
@@ -229,9 +230,11 @@ class cfunction():
                     self.emit ( "while%d:" % lab1,0)
                     self.compile_block((i.statement_,))  #While body
                     self.emit ( "goto while%d" % lab1,0)
+                    print "WARNING: infinite loop detected. This warning will be shown until the problem will be fixed"
                     continue
                 elif self.inf.getinfer(i.expr_)==False:
                     self.emit("nop",0)
+                    print "WARNING: never executed while loop"
                     continue
                 
                 #Normal code generation
@@ -249,13 +252,10 @@ class cfunction():
                 p=prefix[self.f.type_.__class__]
                 self.emit("%sreturn" % p[0],-1)
 
-
     def compile_expr(self,e):
-        '''
-        Eand.       Expr4           ::= Expr4 "&&" Expr5;
-        Eor.        Expr3           ::= Expr3 "||" Expr4;
-        '''
-    
+        '''Emits instructions to compile an expression,
+        leaving its final result on the stack'''
+        
         dic= {
             cpp.Absyn.Eadd: "add",
             cpp.Absyn.Emul: "mul",
@@ -281,7 +281,7 @@ class cfunction():
                 cpp.Absyn.Eeql: "ifeq",
                 cpp.Absyn.Edif: "ifne"
         }
-    
+        
         if isinstance(e,cpp.Absyn.Eint): #Integer value
             self.emit("ldc %d" % e.integer_,1)
         elif isinstance(e,cpp.Absyn.Ebool): #Boolean value
@@ -290,7 +290,7 @@ class cfunction():
             else:
                 self.emit("iconst_0",1) #False
         elif isinstance(e,cpp.Absyn.Estrng): #String constant value
-            self.emit("ldc \"%s\""% e.string_,2) #//TODO I have no clue how big is pushing a string constant on the stack
+            self.emit("ldc \"%s\""% e.string_,1) #//TODO I have no clue how big is pushing a string constant on the stack
         elif isinstance(e,cpp.Absyn.Edbl): #Double value
             self.emit("ldc2_w %lf"%e.double_,2)
         elif isinstance(e,cpp.Absyn.Eitm): #Loads Variable
@@ -305,7 +305,6 @@ class cfunction():
                 self.emit("dup2",2) #Needed becaus assignment returns a value as well
             else:
                 self.emit("dup",1) #Needed becaus assignment returns a value as well
-            
             self.emit("%sstore %d" % (p[0],self.variables.get(e.expr_1.cident_)),p[1]*-1)
         elif isinstance(e,cpp.Absyn.Eainc): #var++
             self.emit ("iload %d" % self.variables.get(e.expr_.cident_),1) #Load var on stack
@@ -416,11 +415,8 @@ class cfunction():
         elif e.__class__ in dic: #Aritmetic operations
             self.compile_expr(e.expr_1)
             self.compile_expr(e.expr_2)
-            
             p=prefix[self.inf.getinfer(e).__class__]
-                        
-            
-            self.emit("%s%s" % (p[0],dic[e.__class__]),-1)
+            self.emit("%s%s" % (p[0],dic[e.__class__]),-1*p[1])
 
 if __name__=="__main__":
     for f in range(1,len(sys.argv)):

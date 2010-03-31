@@ -1,0 +1,7 @@
+18,23d17
+< 
+<   public int hashCode() {
+<     return this.cident_.hashCode();
+<   }
+< 
+< 
