@@ -41,6 +41,7 @@ Return.		Statement		::=	"return" Expr ";";
 VoidReturn. Statement       ::= "return" ";";
 Block.		Statement		::=	"{" [Statement] "}";
 While.		Statement		::=	"while" "(" Expr ")" Statement;
+DoWhile.    Statement       ::= "do" Statement "while" "(" Expr ")" ";";
 Expression.	Statement		::=	Expr ";" ;
 IfElse.		Statement		::=	"if" "(" Expr ")" Statement "else" Statement;
 If.         Statement       ::= "if" "(" Expr ")" Statement;
