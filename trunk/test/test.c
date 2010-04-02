@@ -1,10 +1,10 @@
 int main () {
     int a=readInt();
-    if (3==a) printString("Hai scritto 3");
-    else {
-        printString("Hai scritto");
-        printInt(a);
+    
+    while (a<30) {
+        printInt(a++);
     }
+    
     return 0;   
     
     

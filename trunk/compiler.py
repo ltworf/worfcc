@@ -26,6 +26,7 @@ import context
 import inferred
 import improve
 import os.path
+import options
 
 
 prefix= {
@@ -240,7 +241,7 @@ class cfunction():
                         continue
                 
                 #Code generation for expressions like < > == !=, jumping directly on the condition
-                if i.expr_.__class__ in self.comp_dic:
+                if options.improvementLevel>1 and  i.expr_.__class__ in self.comp_dic:
                     if isinstance(i,cpp.Absyn.IfElse):
                         self.compile_if(i.expr_,i.statement_1,i.statement_2)
                     else:
@@ -266,13 +267,15 @@ class cfunction():
                     
                 self.emit( "endif%d:" %lab1,0)
             elif isinstance(i,cpp.Absyn.While):
-                lab1=self.lbl.getlbl()
+                l=self.lbl.getlbl()
+                lblwhile="while%d" %l
+                lblexpr="expr%d" %l
                 
                 #Code generation if the condition is constant
                 if self.inf.getinfer(i.expr_)==True:
-                    self.emit ( "while%d:" % lab1,0)
+                    self.emit ( "%s:" % lblwhile,0)
                     self.compile_block((i.statement_,))  #While body
-                    self.emit ( "goto while%d" % lab1,0)
+                    self.emit ( "goto %s" % lblwhile,0)
                     print "WARNING: infinite loop detected. This warning will be shown until the problem will be fixed"
                     continue
                 elif self.inf.getinfer(i.expr_)==False:
@@ -280,13 +283,17 @@ class cfunction():
                     print "WARNING: never executed while loop"
                     continue
                 
-                #Normal code generation
-                self.emit ( "while%d:" % lab1,0)
-                self.compile_expr(i.expr_)
-                self.emit ("ifeq endwhile%d" % lab1,-1)  #If condition is false, exits
+                self.emit ("goto %s"%lblexpr,0)
+                self.emit ( "%s:" % lblwhile,0)
                 self.compile_block((i.statement_,))  #While body
-                self.emit ( "goto while%d" % lab1,0)
-                self.emit ( "endwhile%d:" % lab1,0)
+                self.emit ( "%s:" % lblexpr,0)
+                
+                if options.improvementLevel>1 and  i.expr_.__class__ in self.comp_dic:
+                    self.compile_if(i.expr_,[('goto %s'%lblwhile,0),],None)
+                else:
+                    self.compile_expr(i.expr_)
+                    self.emit ("ifne %s" % lblwhile,-1)  #If condition is false, exits
+                
             elif isinstance(i,cpp.Absyn.VoidReturn):
                 self.emit("return",0)
             elif isinstance(i,cpp.Absyn.Return):
