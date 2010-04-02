@@ -239,6 +239,15 @@ class cfunction():
                     elif self.inf.getinfer(i.expr_)==False:
                         continue
                 
+                #Code generation for expressions like < > == !=, jumping directly on the condition
+                if i.expr_.__class__ in self.comp_dic:
+                    if isinstance(i,cpp.Absyn.IfElse):
+                        self.compile_if(i.expr_,i.statement_1,i.statement_2)
+                    else:
+                        self.compile_if(i.expr_,i.statement_,None)
+                    continue
+        
+                
                 #Normal code generation
                 self.compile_expr(i.expr_) #Pushing the result of the condition
                 lab1=self.lbl.getlbl()
@@ -335,8 +344,9 @@ class cfunction():
         #Compiles the false branch if it exists
         if falseb!=None:
             
+            f_stack_count=0
             if isinstance(falseb,list):
-                f_stack_count=0
+                
                 for i in falseb:
                     self.emit(i[0],i[1])
                     f_stack_count+=i[1]

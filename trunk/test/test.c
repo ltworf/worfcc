@@ -1,11 +1,18 @@
 int main () {
-    printDouble(dfac(1.0));
-    return 1;
+    int a=readInt();
+    if (3==a) printString("Hai scritto 3");
+    else {
+        printString("Hai scritto");
+        printInt(a);
+    }
+    return 0;   
+    
+    
 }
 
-double dfac(double n) {
+/*double dfac(double n) {
     return n*2.0;
-}
+}*/
 
 /*
 double dfac(double n) {
