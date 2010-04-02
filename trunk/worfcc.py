@@ -40,6 +40,7 @@ def printhelp(code=0):
     print 
     print "  -a            Only generates the jasmin assembly"
     print "  -h            Print this help and exits"
+    print "  -r            Runs the compiled files after compiling"
     print "  -t            Only performs typechecking"
     print "  -v            Print version and exits"
     print "  -O            Optimization level"
@@ -53,7 +54,9 @@ def chkf(files):
 
 if __name__ == "__main__":
     assembly_only=False
-    s,files=getopt.getopt(sys.argv[1:],"aO:vht")
+    run_after=False
+    
+    s,files=getopt.getopt(sys.argv[1:],"aO:vhtr")
     
     log=file("compile.log","a")
     
@@ -70,6 +73,8 @@ if __name__ == "__main__":
             options.improvementLevel=int(i[1])
         elif i[0]== '-a':
             assembly_only=True
+        elif i[0]== '-r':
+            run_after=True
     #Compile the files
     
     rfiles=[]
@@ -77,15 +82,27 @@ if __name__ == "__main__":
         if not os.path.exists(i):
             print >> sys.stderr, "Unable to find file %s" %i
             sys.exit(1)
-        print "Generating assembly for %s"%i
+        #print "Generating assembly for %s"%i
         log.write("Generating assembly for %s\n"%i)
         rfiles.append(compiler.ijvm_compile(i))
     log.close()
     
     if assembly_only:
         sys.exit(0)
-    print "Compiling class files"
+    #print "Compiling class files"
     
     for r in rfiles:
-        print "java -jar jasmin.jar -d %s %s" % (os.path.dirname(r),r)
+        #print "java -jar jasmin.jar -d %s %s" % (os.path.dirname(r),r)
         os.system("java -jar jasmin.jar -d %s %s" % (os.path.dirname(r),r))
+    
+    if run_after:
+        cdir=os.path.realpath(os.path.curdir+"/lib")
+        for i in files:
+            
+            os.chdir(os.path.dirname(i))
+            nn=os.path.basename(i)
+            
+            #print os.path.dirname(i)
+            #print "java -cp .:%s %s" % (cdir,nn[:nn.rindex('.')])
+            os.system("java -cp .:%s %s" % (cdir,nn[:nn.rindex('.')]))
+        

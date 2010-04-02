@@ -1,9 +1,9 @@
 int main () {
-    if (1<readInt()) {
+    int a;
+    while (a++<30)
+    printInt(123123);
+    
         return l(1,2,3,4,5,6,7,8,9,10);
-    } else {
-        return l(1,2,3,4,5,6,7,8,9,10);
-    }
 }
 
 int l(int a,int b, int c, int d, int e , int f, int g,int h,int i,int l) {
