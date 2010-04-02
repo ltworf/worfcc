@@ -43,9 +43,9 @@ def checkfile(filename):
         res=parser.parse()
         prog=res.value
     except:
-        print "SYNTAX ERROR"
-        print "At line ",lexer.line_num()
-        print "near ", lexer.buff()
+        print >> sys.stderr,"ERROR\nSYNTAX ERROR"
+        print >> sys.stderr,"At line ",lexer.line_num()
+        print >> sys.stderr,"near ", lexer.buff()
         raise Exception("SYNTAX ERROR")
     
     #Adding all the functions to the context, because their definition doesn't have to be before their 1st call
@@ -151,7 +151,7 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
             has_return=chk_block(i.liststatement_,contx,True,return_,t_inf);
         elif isinstance(i,cpp.Absyn.Expression):    #Expression
             infer(i.expr_,contx,t_inf)
-        elif isinstance(i,cpp.Absyn.While):    #While loop
+        elif isinstance(i,cpp.Absyn.While) or isinstance(i,cpp.Absyn.DoWhile):    #While/Do-while loop
             inf=check_const_expr(i,t_inf,contx)
             
             if not isinstance(inf,cpp.Absyn.Typebool):
@@ -159,6 +159,11 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
             #Check while's statement in the same context, as a list of one item.
             # If it is a block, another recoursive call will create the new context
             r=chk_block([i.statement_,],contx,False,return_,t_inf)#Check the instructions
+            
+            #Do while body is always executed
+            if r and isinstance(i,cpp.Absyn.DoWhile):
+                has_return=True
+                index-=1
             
             if t_inf.getinfer(i.expr_)==True:
                 has_return=r

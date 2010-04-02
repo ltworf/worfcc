@@ -266,27 +266,39 @@ class cfunction():
                     self.compile_block((i.statement_2,))  #False branch
                     
                 self.emit( "endif%d:" %lab1,0)
-            elif isinstance(i,cpp.Absyn.While):
+            elif isinstance(i,cpp.Absyn.While) or isinstance(i,cpp.Absyn.DoWhile):    #While/Do-while loop
                 l=self.lbl.getlbl()
                 lblwhile="while%d" %l
                 lblexpr="expr%d" %l
                 
                 #Code generation if the condition is constant
+                
                 if self.inf.getinfer(i.expr_)==True:
                     self.emit ( "%s:" % lblwhile,0)
                     self.compile_block((i.statement_,))  #While body
                     self.emit ( "goto %s" % lblwhile,0)
                     print "WARNING: infinite loop detected. This warning will be shown until the problem will be fixed"
                     continue
-                elif self.inf.getinfer(i.expr_)==False:
+                elif self.inf.getinfer(i.expr_)==False and isinstance(i,cpp.Absyn.While):
                     self.emit("nop",0)
                     print "WARNING: never executed while loop"
                     continue
+                elif self.inf.getinfer(i.expr_)==False and isinstance(i,cpp.Absyn.DoWhile):
+                    self.compile_block((i.statement_,))
+                    print "WARNING: do-while will be executed only once"
+                    continue
                 
-                self.emit ("goto %s"%lblexpr,0)
+                #A do-while always executes the 1st time
+                if isinstance(i,cpp.Absyn.While):
+                    self.emit ("goto %s"%lblexpr,0)
+                    
+                    
                 self.emit ( "%s:" % lblwhile,0)
                 self.compile_block((i.statement_,))  #While body
-                self.emit ( "%s:" % lblexpr,0)
+                
+                #This label would never be jumped to in case of do-while
+                if isinstance(i,cpp.Absyn.While):
+                    self.emit ( "%s:" % lblexpr,0)
                 
                 if options.improvementLevel>1 and  i.expr_.__class__ in self.comp_dic:
                     self.compile_if(i.expr_,[('goto %s'%lblwhile,0),],None)
@@ -316,7 +328,6 @@ class cfunction():
         In this case the sum of opstack in both branches must be the same
         and it is not allowed to have a None falseb'''
         is_int=self.inf.getinfer(e.expr_1).__class__ in (cpp.Absyn.Typebool, cpp.Absyn.Typeint)
-        
         
         self.compile_expr(e.expr_1) #Pushing operands
         self.compile_expr(e.expr_2)

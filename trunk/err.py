@@ -19,11 +19,12 @@
 # author Salvo "LtWorf" Tomaselli <tiposchi@tiscali.it>
 
 import cpp
+import sys
 
-def error(message,contx,kind="TYPE ERROR"):
-    print kind
-    print "\tContext:",contx.getname()
-    print "\t"+message
+def error(message,contx,kind="ERROR\nTYPE ERROR"):
+    print >> sys.stderr, kind
+    print >> sys.stderr, "\tContext:",contx.getname()
+    print >> sys.stderr, "\t"+message
     raise Exception(message)
     pass
 

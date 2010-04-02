@@ -1,18 +1,15 @@
 int main () {
-    int a=readInt();
+    double r;
+    r=readDouble();
     
-    while (a<30) {
-        printInt(a++);
-    }
-    
-    return 0;   
-    
-    
+    r=dd(r);
+    printDouble(r);
+    return 0;
 }
 
-/*double dfac(double n) {
-    return n*2.0;
-}*/
+double dd(double n) {
+    return n;
+}
 
 /*
 double dfac(double n) {
