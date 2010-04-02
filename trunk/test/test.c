@@ -1,16 +1,14 @@
 int main () {
-    double r;
-    r=readDouble();
-    
-    r=dd(r);
-    printDouble(r);
-    return 0;
+    if (1<readInt()) {
+        return l(1,2,3,4,5,6,7,8,9,10);
+    } else {
+        return l(1,2,3,4,5,6,7,8,9,10);
+    }
 }
 
-double dd(double n) {
-    return n;
+int l(int a,int b, int c, int d, int e , int f, int g,int h,int i,int l) {
+    return a+b+c+d+e+f+g+h+i%l;
 }
-
 /*
 double dfac(double n) {
     if (n == 0.0)
