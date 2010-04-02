@@ -102,6 +102,36 @@ class cfunction():
         inf: inferred class to access the type of the expressions
         contx is the context that contains the other functions
         classname is the name of the class itself'''
+        
+        self.dic= {
+            cpp.Absyn.Eadd: "add",
+            cpp.Absyn.Emul: "mul",
+            cpp.Absyn.Esub: "sub",
+            cpp.Absyn.Ediv: "div",
+            cpp.Absyn.Emod: "rem"
+        }
+        
+        #Conditions are REVERSED on purpose
+        #To generate code that jumps in case of false rathan in case of true
+        # (makes optimizations easier)
+        self.comp_dic= {
+            cpp.Absyn.Egt: "if_icmple",
+            cpp.Absyn.Elt: "if_icmpge",
+            cpp.Absyn.Eelt: "if_icmpgt",
+            cpp.Absyn.Eegt: "if_icmplt",
+            cpp.Absyn.Eeql: "if_icmpne",
+            cpp.Absyn.Edif: "if_icmpeq"
+        }
+        
+        self.dcomp_dic = {
+                cpp.Absyn.Egt: "ifle",
+                cpp.Absyn.Elt: "ifge",
+                cpp.Absyn.Eelt: "ifgt",
+                cpp.Absyn.Eegt: "iflt",
+                cpp.Absyn.Eeql: "ifne",
+                cpp.Absyn.Edif: "ifeq"
+        }
+        
         self.contx=contx #Context, contains the declarations of the other functions
         
         self.classname=classname
@@ -136,6 +166,11 @@ class cfunction():
         
         self.compile_block(self.f.liststatement_)
         
+        #Add a return for void functions
+        if isinstance(self.f.type_,cpp.Absyn.Typevoid) and (len(self.opcodes)==0 or self.opcodes[len(self.opcodes)-1]!='return'):
+            self.opcodes.append('return')
+            
+        
         self.opcodes=improve.improve(self.opcodes)
         
         r='\n'
@@ -161,7 +196,6 @@ class cfunction():
         '''This function compiles a block, or the main block of a function'''
         if len(statements)==0:
             print "WARNING: blocks are supposed to contain code, not to create decorations"
-            self.emit("nop",0)
             
         for i in statements:
             if isinstance(i,cpp.Absyn.Expression):    #Expression
@@ -251,37 +285,70 @@ class cfunction():
                 
                 p=prefix[self.f.type_.__class__]
                 self.emit("%sreturn" % p[0],-1)
+    def compile_if(self,e,trueb,falseb):
+        '''Compiles a comparison and both the blocks.
+        This can be used when compiling an > or when compiling
+        an if.
+        
+        falseb can be null, in this case something will be executed
+        in case of true condition and nothing in case of false condition.
+        
+        trueb and falseb can be either lists or statements.
+        If they are lists, their items will be iterated and emitted,
+        if they are statements they will be compiled.
+        Lists item must be a tuple (instruction,opstack).
+        In this case the sum of opstack in both branches must be the same
+        and it is not allowed to have a None falseb'''
+        is_int=self.inf.getinfer(e.expr_1).__class__ in (cpp.Absyn.Typebool, cpp.Absyn.Typeint)
+        
+        
+        self.compile_expr(e.expr_1) #Pushing operands
+        self.compile_expr(e.expr_2)
+        
+        l=self.lbl.getlbl()
+        lbljump="falsecondition%d" %l
+        lblend="endcomparison%d" %l
+        
+        #Emit jump for the false condition
+        if is_int:
+            self.emit ("%s %s" % (self.comp_dic[e.__class__],lbljump),-2)
+        else:
+            self.emit("dcmpg",-3)
+            self.emit("%s %s" % (self.dcomp_dic[e.__class__],lbljump),-1)
 
+        #Compile true branch
+        if isinstance(trueb,list):
+            t_stack_count=0
+            for i in trueb:
+                self.emit(i[0],i[1])
+                t_stack_count+=i[1]
+        else:
+            self.compile_block((trueb,))
+        
+        #Jumps to after the false branch (if necessary
+        if falseb!=None:
+            self.emit("goto %s" % lblend,0)
+        
+        #Label to after the true branch
+        self.emit("%s:"%lbljump,0)
+        
+        #Compiles the false branch if it exists
+        if falseb!=None:
+            
+            if isinstance(falseb,list):
+                f_stack_count=0
+                for i in falseb:
+                    self.emit(i[0],i[1])
+                    f_stack_count+=i[1]
+            else:
+                self.compile_block((falseb,))
+            
+            #Remove double count for stack
+            self.emit("%s:"%lblend,-1*f_stack_count)
+        
     def compile_expr(self,e):
         '''Emits instructions to compile an expression,
         leaving its final result on the stack'''
-        
-        dic= {
-            cpp.Absyn.Eadd: "add",
-            cpp.Absyn.Emul: "mul",
-            cpp.Absyn.Esub: "sub",
-            cpp.Absyn.Ediv: "div",
-            cpp.Absyn.Emod: "rem"
-        }
-    
-        comp_dic= {
-            cpp.Absyn.Egt: "if_icmpgt",
-            cpp.Absyn.Elt: "if_icmplt",
-            cpp.Absyn.Eelt: "if_icmple",
-            cpp.Absyn.Eegt: "if_icmpge",
-            cpp.Absyn.Eeql: "if_icmpeq",
-            cpp.Absyn.Edif: "if_icmpne"
-        }
-        
-        dcomp_dic = {
-                cpp.Absyn.Egt: "ifgt",
-                cpp.Absyn.Elt: "iflt",
-                cpp.Absyn.Eelt: "ifle",
-                cpp.Absyn.Eegt: "ifge",
-                cpp.Absyn.Eeql: "ifeq",
-                cpp.Absyn.Edif: "ifne"
-        }
-        
         if isinstance(e,cpp.Absyn.Eint): #Integer value
             self.emit("ldc %d" % e.integer_,1)
         elif isinstance(e,cpp.Absyn.Ebool): #Boolean value
@@ -381,42 +448,14 @@ class cfunction():
             
             #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
             self.emit("endor%d:" %lab1,-1)
-        elif e.__class__ in comp_dic and self.inf.getinfer(e.expr_1).__class__ in (cpp.Absyn.Typebool, cpp.Absyn.Typeint):   #Comparison int, boolean
-            self.compile_expr(e.expr_1) #Pushing operands
-            self.compile_expr(e.expr_2)
-        
-            lab1=self.lbl.getlbl()   #Getting label
-        
-            self.emit ("%s trueexpr%d" % (comp_dic[e.__class__],lab1),-2)
-            self.emit("iconst_0",1)    #False
-            self.emit("goto endexpr%d" % lab1,0)
-            self.emit("trueexpr%d:" % lab1,0)
-            self.emit("iconst_1",1)    #True
             
-            #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
-            self.emit("endexpr%d:" %lab1,-1)
-        elif e.__class__ in dcomp_dic and isinstance(self.inf.getinfer(e.expr_1),cpp.Absyn.Typedouble): #Dobule comparison
-            self.compile_expr(e.expr_1) #Pushing operands
-            self.compile_expr(e.expr_2)
-            self.emit("dcmpg",-3)
-            
-            l=self.lbl.getlbl()
-            l1="doublecomp%d" % l
-            l2="enddoublecomp%d" % l
-            
-            self.emit("%s %s" % (dcomp_dic[e.__class__],l1),-1)
-            self.emit("iconst_0",1)    #False
-            self.emit("goto %s"%l2,0)
-            self.emit("%s:"%l1,0)
-            self.emit("iconst_1",1)    #True
-            
-            #The -1 there is because otherwise the stack will grow, considering that both expr_2 and iconst_0 will be executed, which is not possible
-            self.emit("%s:"%l2,-1)
-        elif e.__class__ in dic: #Aritmetic operations
+        elif e.__class__ in self.comp_dic:
+            self.compile_if(e,[('iconst_1',1),],[('iconst_0',1),])
+        elif e.__class__ in self.dic: #Aritmetic operations
             self.compile_expr(e.expr_1)
             self.compile_expr(e.expr_2)
             p=prefix[self.inf.getinfer(e).__class__]
-            self.emit("%s%s" % (p[0],dic[e.__class__]),-1*p[1])
+            self.emit("%s%s" % (p[0],self.dic[e.__class__]),-1*p[1])
 
 if __name__=="__main__":
     for f in range(1,len(sys.argv)):

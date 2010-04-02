@@ -38,9 +38,10 @@ def printhelp(code=0):
     print
     print "Usage: %s [options] [files]" % sys.argv[0]
     print 
-    print "  -v            Print version and exits"
+    print "  -a            Only generates the jasmin assembly"
     print "  -h            Print this help and exits"
     print "  -t            Only performs typechecking"
+    print "  -v            Print version and exits"
     print "  -O            Optimization level"
 
     sys.exit(code)
@@ -51,7 +52,8 @@ def chkf(files):
         print "OK: %s"%i
 
 if __name__ == "__main__":
-    s,files=getopt.getopt(sys.argv[1:],"O:vht")
+    assembly_only=False
+    s,files=getopt.getopt(sys.argv[1:],"aO:vht")
     
     log=file("compile.log","a")
     
@@ -66,17 +68,23 @@ if __name__ == "__main__":
             printversion()
         elif i[0]== '-O':
             options.improvementLevel=int(i[1])
-
+        elif i[0]== '-a':
+            assembly_only=True
     #Compile the files
     
     rfiles=[]
     for i in files:
+        if not os.path.exists(i):
+            print >> sys.stderr, "Unable to find file %s" %i
+            sys.exit(1)
         print "Generating assembly for %s"%i
         log.write("Generating assembly for %s\n"%i)
         rfiles.append(compiler.ijvm_compile(i))
     log.close()
+    
+    if assembly_only:
+        sys.exit(0)
     print "Compiling class files"
-   
     
     for r in rfiles:
         print "java -jar jasmin.jar -d %s %s" % (os.path.dirname(r),r)
