@@ -46,6 +46,10 @@ def fold_statement(s):
     elif isinstance(s,cpp.Absyn.IfElse):
         fold_statement(s.statement_1)
         fold_statement(s.statement_2)
+    elif isinstance(s,cpp.Absyn.LocalVars):
+        for i in s.listvitem_:
+            if isinstance(i,cpp.Absyn.VarVA):
+                i.expr_=fold_expression(i.expr_)
     
 def fold_expression(e):
     binary=(cpp.Absyn.Emul,cpp.Absyn.Ediv,cpp.Absyn.Emod,cpp.Absyn.Eadd,cpp.Absyn.Esub,cpp.Absyn.Elt,cpp.Absyn.Egt,cpp.Absyn.Eelt,cpp.Absyn.Eegt,cpp.Absyn.Eeql,cpp.Absyn.Edif,cpp.Absyn.Eand,cpp.Absyn.Eor,cpp.Absyn.Eass)
@@ -54,9 +58,11 @@ def fold_expression(e):
     if e.__class__ in binary:
         e.expr_1=fold_expression(e.expr_1)
         e.expr_2=fold_expression(e.expr_2)
-    if e.__class__ in unary:
+    elif e.__class__ in unary:
         e.expr_=fold_expression(e.expr_)
-    
+    elif isinstance(e,cpp.Absyn.Efun):
+        for i in range(len(e.listexpr_)):
+            e.listexpr_[i]=fold_expression(e.listexpr_[i])
     #Tries to solve the tree and return the result
     r=solve_expression(e)
     if r!=None:
@@ -74,12 +80,10 @@ rev_rel= {
     }
 
 def solve_expression(e):
-    print e
     
     #Reverting relational operators
     if isinstance(e,cpp.Absyn.ENot) and e.expr_.__class__ in rev_rel:
         return rev_rel[e.expr_.__class__](e.expr_.expr_1,e.expr_.expr_2)
-    
     
     #Boolean
     elif isinstance(e,cpp.Absyn.Eeql) and isinstance(e.expr_1,cpp.Absyn.Ebool) and isinstance(e.expr_2,cpp.Absyn.Ebool):
@@ -110,7 +114,6 @@ def solve_expression(e):
     
     #Integer arithmetic
     elif isinstance (e,cpp.Absyn.Emul) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
-        print "per"
         return cpp.Absyn.Eint(e.expr_1.integer_ * e.expr_2.integer_ )
     elif isinstance (e,cpp.Absyn.Ediv) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
         return cpp.Absyn.Eint(e.expr_1.integer_ / e.expr_2.integer_ )
@@ -120,7 +123,8 @@ def solve_expression(e):
         return cpp.Absyn.Eint(e.expr_1.integer_ + e.expr_2.integer_ )
     elif isinstance (e,cpp.Absyn.Esub) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
         return cpp.Absyn.Eint(e.expr_1.integer_ - e.expr_2.integer_ )
-    
+    elif isinstance (e,cpp.Absyn.ENeg) and isinstance (e.expr_,cpp.Absyn.Eint):
+        return cpp.Absyn.Eint(e.expr_.integer_ * -1)
     
     #double arithmetic
     elif isinstance (e,cpp.Absyn.Emul) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
@@ -131,44 +135,72 @@ def solve_expression(e):
         return cpp.Absyn.Edbl(e.expr_1.double_ + e.expr_2.double_ )
     elif isinstance (e,cpp.Absyn.Esub) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
         return cpp.Absyn.Edbl(e.expr_1.double_ - e.expr_2.double_ )
+    elif isinstance (e,cpp.Absyn.ENeg) and isinstance (e.expr_,cpp.Absyn.Edbl):
+        return cpp.Absyn.Edbl(e.expr_.double_ * -1)
 
 
-
-    '''cpp.Absyn.Elt)
-    cpp.Absyn.Egt)
-    cpp.Absyn.Eelt)
-    cpp.Absyn.Eegt)
-    cpp.Absyn.Eeql)
-    cpp.Absyn.Edif)
-   ''' 
+    #integer relational
+    elif isinstance (e,cpp.Absyn.Elt) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        if e.expr_1.integer_ < e.expr_2.integer_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Egt) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        if e.expr_1.integer_ > e.expr_2.integer_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Eelt) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        if e.expr_1.integer_ <= e.expr_2.integer_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Eegt) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        if e.expr_1.integer_ >= e.expr_2.integer_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Eeql) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        if e.expr_1.integer_ == e.expr_2.integer_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Edif) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        if e.expr_1.integer_ != e.expr_2.integer_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    
+    #double relational
+    elif isinstance (e,cpp.Absyn.Elt) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        if e.expr_1.double_ < e.expr_2.double_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Egt) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        if e.expr_1.double_ > e.expr_2.double_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Eelt) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        if e.expr_1.double_ <= e.expr_2.double_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Eegt) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        if e.expr_1.double_ >= e.expr_2.double_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Eeql) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        if e.expr_1.double_ == e.expr_2.double_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
+    elif isinstance (e,cpp.Absyn.Edif) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        if e.expr_1.double_ != e.expr_2.double_:
+            return cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        else:
+            return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
     
     return None
-'''
-LocalVars.          Statement           ::= Type [VItem] ";";
-
-Argument.           Argument            ::= Type CIdent;
-VarNA.              VItem               ::= CIdent;
-VarVA.              VItem               ::= CIdent "=" Expr;
-
-Eint.               Expr16              ::= Integer;
-Edbl.               Expr16              ::= Double;
-Ebool.              Expr16              ::= Bool;
-Estrng.             Expr16              ::= String;
-Eitm.               Expr16              ::= CIdent;
-Efun.               Expr15              ::= CIdent "(" [Expr] ")";
-
-
-Eainc.              Expr14              ::= Expr15 "++";
-Eadec.              Expr14              ::= Expr15 "--";
-Epinc.              Expr13              ::= "++" Expr14;
-Epdec.              Expr13              ::= "--" Expr14;
-ENeg.               Expr12              ::= "-" Expr13 ;
-
-Elt.                Expr9               ::= Expr9 "<" Expr10;
-Egt.                Expr9               ::= Expr9 ">" Expr10;
-Eelt.               Expr9               ::= Expr9 "<=" Expr10;
-Eegt.               Expr9               ::= Expr9 ">=" Expr10;
-Eeql.               Expr8               ::= Expr8 "==" Expr9;
-Edif.               Expr8               ::= Expr8 "!=" Expr9;
-
-Eass.               Expr2               ::= Expr3 "=" Expr2;'''
