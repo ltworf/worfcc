@@ -1,0 +1,11 @@
+#!/bin/sh
+cd cpp/Absyn/
+for i in *java
+do 
+	echo Editing $i
+	cat $i | sed "s/final//" | sed "s/public int hashCode/public int _hashCode/"> $i.new
+	mv $i.new $i
+done
+cd ../../
+echo Recompiling...
+javac cpp/Absyn/*.java

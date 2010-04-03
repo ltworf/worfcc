@@ -4,8 +4,8 @@
 > all: mkjlex cuplib test patches
 > 
 > patches:
-> 	patch cpp/Absyn/Eitm.java Eitm.diff	
-> 	javac cpp/Absyn/Eitm.java
+> 	./unfinal
+> 	echo "java files patched"
 > 
 > mkjlex:
 > 	javac JLex/Main.java
