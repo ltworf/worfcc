@@ -26,6 +26,7 @@ import sys
 import java_cup
 import err
 import inferred
+import options
 
 builtins=("printInt","printDouble","printString","readInt","readDouble") #"printBool"
 
@@ -47,6 +48,11 @@ def checkfile(filename):
         print >> sys.stderr,"At line ",lexer.line_num()
         print >> sys.stderr,"near ", lexer.buff()
         raise Exception("SYNTAX ERROR")
+    
+    #Performs constant folding
+    if options.improvementLevel>1:
+        import cfold
+        cfold.fold(prog)
     
     #Adding all the functions to the context, because their definition doesn't have to be before their 1st call
     for i in prog.listdeclaration_:
