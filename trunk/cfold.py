@@ -46,13 +46,10 @@ def fold_statement(s):
     elif isinstance(s,cpp.Absyn.IfElse):
         fold_statement(s.statement_1)
         fold_statement(s.statement_2)
-        
     
 def fold_expression(e):
     binary=(cpp.Absyn.Emul,cpp.Absyn.Ediv,cpp.Absyn.Emod,cpp.Absyn.Eadd,cpp.Absyn.Esub,cpp.Absyn.Elt,cpp.Absyn.Egt,cpp.Absyn.Eelt,cpp.Absyn.Eegt,cpp.Absyn.Eeql,cpp.Absyn.Edif,cpp.Absyn.Eand,cpp.Absyn.Eor,cpp.Absyn.Eass)
     unary=(cpp.Absyn.Eainc,cpp.Absyn.Eadec,cpp.Absyn.Epinc,cpp.Absyn.Epdec,cpp.Absyn.ENeg,cpp.Absyn.ENot)
-    
-    
     
     if e.__class__ in binary:
         e.expr_1=fold_expression(e.expr_1)
@@ -77,9 +74,12 @@ rev_rel= {
     }
 
 def solve_expression(e):
+    print e
+    
     #Reverting relational operators
     if isinstance(e,cpp.Absyn.ENot) and e.expr_.__class__ in rev_rel:
         return rev_rel[e.expr_.__class__](e.expr_.expr_1,e.expr_.expr_2)
+    
     
     #Boolean
     elif isinstance(e,cpp.Absyn.Eeql) and isinstance(e.expr_1,cpp.Absyn.Ebool) and isinstance(e.expr_2,cpp.Absyn.Ebool):
@@ -108,6 +108,40 @@ def solve_expression(e):
         else:
             return cpp.Absyn.Ebool(cpp.Absyn.FalseLit())
     
+    #Integer arithmetic
+    elif isinstance (e,cpp.Absyn.Emul) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        print "per"
+        return cpp.Absyn.Eint(e.expr_1.integer_ * e.expr_2.integer_ )
+    elif isinstance (e,cpp.Absyn.Ediv) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        return cpp.Absyn.Eint(e.expr_1.integer_ / e.expr_2.integer_ )
+    elif isinstance (e,cpp.Absyn.Emod) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        return cpp.Absyn.Eint(e.expr_1.integer_ % e.expr_2.integer_ )
+    elif isinstance (e,cpp.Absyn.Eadd) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        return cpp.Absyn.Eint(e.expr_1.integer_ + e.expr_2.integer_ )
+    elif isinstance (e,cpp.Absyn.Esub) and isinstance (e.expr_1,cpp.Absyn.Eint) and isinstance (e.expr_2,cpp.Absyn.Eint):
+        return cpp.Absyn.Eint(e.expr_1.integer_ - e.expr_2.integer_ )
+    
+    
+    #double arithmetic
+    elif isinstance (e,cpp.Absyn.Emul) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        return cpp.Absyn.Edbl(e.expr_1.double_ * e.expr_2.double_ )
+    elif isinstance (e,cpp.Absyn.Ediv) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        return cpp.Absyn.Edbl(e.expr_1.double_ / e.expr_2.double_ )
+    elif isinstance (e,cpp.Absyn.Eadd) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        return cpp.Absyn.Edbl(e.expr_1.double_ + e.expr_2.double_ )
+    elif isinstance (e,cpp.Absyn.Esub) and isinstance (e.expr_1,cpp.Absyn.Edbl) and isinstance (e.expr_2,cpp.Absyn.Edbl):
+        return cpp.Absyn.Edbl(e.expr_1.double_ - e.expr_2.double_ )
+
+
+
+    '''cpp.Absyn.Elt)
+    cpp.Absyn.Egt)
+    cpp.Absyn.Eelt)
+    cpp.Absyn.Eegt)
+    cpp.Absyn.Eeql)
+    cpp.Absyn.Edif)
+   ''' 
+    
     return None
 '''
 LocalVars.          Statement           ::= Type [VItem] ";";
@@ -130,16 +164,11 @@ Epinc.              Expr13              ::= "++" Expr14;
 Epdec.              Expr13              ::= "--" Expr14;
 ENeg.               Expr12              ::= "-" Expr13 ;
 
-
-Emul.               Expr11              ::= Expr11 "*" Expr12;
-Ediv.               Expr11              ::= Expr11 "/" Expr12;
-Emod.               Expr11              ::= Expr11 "%" Expr12;
-Eadd.               Expr10              ::= Expr10 "+" Expr11;
-Esub.               Expr10              ::= Expr10 "-" Expr11;
 Elt.                Expr9               ::= Expr9 "<" Expr10;
 Egt.                Expr9               ::= Expr9 ">" Expr10;
 Eelt.               Expr9               ::= Expr9 "<=" Expr10;
 Eegt.               Expr9               ::= Expr9 ">=" Expr10;
 Eeql.               Expr8               ::= Expr8 "==" Expr9;
 Edif.               Expr8               ::= Expr8 "!=" Expr9;
+
 Eass.               Expr2               ::= Expr3 "=" Expr2;'''

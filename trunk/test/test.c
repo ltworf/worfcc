@@ -1,14 +1,9 @@
 int main () {
     
-    if (!(1<3)) printString("<");
-        if (!(1>3)) printString(">");
-        if (!(1==3)) printString("==");
-    if (!(1!=3)) printString("!=");
-    if (!(1<=3)) printString("<=");
-        if (!(1>=3)) printString(">=");
-        
-    if (!(3<=3)) printString("<=");
-    if (!(3>=3)) printString(">=");
+    int a;
+    a=10*4+12-4;
+    double b;
+    b=40.0*2.0-7.0;
     
     return 3;
 }
