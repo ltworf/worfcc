@@ -35,11 +35,11 @@ def reduce_instruction(i):
         
         if val == -1:    #Constants
             return 'iconst_m1'
-        elif val in range(-1,6):
+        elif val>=0 and val<=5:
             return 'iconst_%d' % val
-        elif val in range(-129,128):   #Push byte
+        elif val>=-128 and val<=127:   #Push byte
             return 'bipush %d' % val
-        elif val in range(-32769,32768): #Push short
+        elif val>=-32768 and val<=32767: #Push short
             return 'sipush %d' % val
     
     if s[0]=='ldc2_w': #Double constant
