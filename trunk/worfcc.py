@@ -86,7 +86,10 @@ if __name__ == "__main__":
             print >> sys.stderr, "Unable to find file %s" %i
             sys.exit(1)
         print>>log, "Generating assembly for %s"%i
-        rfiles.append(compiler.ijvm_compile(i))
+        try:
+            rfiles.append(compiler.ijvm_compile(i))
+        except:
+            sys.exit(1)
     
     if assembly_only:
         sys.exit(0)
