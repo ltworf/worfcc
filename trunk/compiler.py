@@ -195,8 +195,8 @@ class cfunction():
         
     def compile_block(self,statements):
         '''This function compiles a block, or the main block of a function'''
-        if len(statements)==0:
-            print>>sys.stderr, "WARNING: blocks are supposed to contain code, not to create decorations"
+        if len(statements)==0 and options.warningLevel>2:
+            print "WARNING: blocks are supposed to contain code, not to create decorations"
             
         for i in statements:
             if isinstance(i,cpp.Absyn.Expression):    #Expression
@@ -277,15 +277,18 @@ class cfunction():
                     self.emit ( "%s:" % lblwhile,0)
                     self.compile_block((i.statement_,))  #While body
                     self.emit ( "goto %s" % lblwhile,0)
-                    print >>sys.stderr,"WARNING: infinite loop detected. This warning will be shown until the problem will be fixed"
+                    if options.warningLevel>2:
+                        print "WARNING: infinite loop detected. This warning will be shown until the problem will be fixed"
                     continue
                 elif self.inf.getinfer(i.expr_)==False and isinstance(i,cpp.Absyn.While):
                     self.emit("nop",0)
-                    print  >>sys.stderr,"WARNING: never executed while loop"
+                    if options.warningLevel>2:
+                        print  "WARNING: never executed while loop"
                     continue
                 elif self.inf.getinfer(i.expr_)==False and isinstance(i,cpp.Absyn.DoWhile):
                     self.compile_block((i.statement_,))
-                    print  >>sys.stderr,"WARNING: do-while will be executed only once"
+                    if options.warningLevel>2:
+                        print "WARNING: do-while will be executed only once"
                     continue
                 
                 #A do-while always executes the 1st time

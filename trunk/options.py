@@ -20,3 +20,4 @@
 # author Salvo "LtWorf" Tomaselli <tiposchi@tiscali.it>
 
 improvementLevel=10
+warningLevel=0

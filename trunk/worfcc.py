@@ -83,7 +83,8 @@ if __name__ == "__main__":
         
         try:
             rfiles.append(compiler.ijvm_compile(i))
-            print >>log, "OK"
+            print>>sys.stderr, "OK"
+            sys.stderr.flush()
             print>>log, "Generated assembly for %s"%i
         except:
             sys.exit(1)
