@@ -40,6 +40,7 @@ def printhelp(code=0):
     print 
     print "  -a            Only generates the jasmin assembly"
     print "  -h            Print this help and exits"
+    print "  -l            Logs to a file instead than stdout"
     print "  -r            Runs the compiled files after compiling"
     print "  -t            Only performs typechecking"
     print "  -v            Print version and exits"
@@ -56,9 +57,9 @@ if __name__ == "__main__":
     assembly_only=False
     run_after=False
     
-    s,files=getopt.getopt(sys.argv[1:],"aO:vhtr")
+    s,files=getopt.getopt(sys.argv[1:],"aO:vhtrl:")
     
-    log=file("compile.log","a")
+    log=sys.stdout
     
     log.write("Execution \n")
     for i in s:
@@ -75,6 +76,8 @@ if __name__ == "__main__":
             assembly_only=True
         elif i[0]== '-r':
             run_after=True
+        elif i[0]== '-l':
+            log=file(i[1],"a")
     #Compile the files
     
     rfiles=[]
@@ -84,7 +87,6 @@ if __name__ == "__main__":
             sys.exit(1)
         print>>log, "Generating assembly for %s"%i
         rfiles.append(compiler.ijvm_compile(i))
-    #log.close()
     
     if assembly_only:
         sys.exit(0)
@@ -93,8 +95,8 @@ if __name__ == "__main__":
     bdir=os.path.realpath(os.path.dirname(sys.argv[0]))
     for r in rfiles:
         
-        print >>log, ('java','-jar','%s/jasmin.jar'%bdir,'-d',os.path.dirname(r),r)
-        f=os.popen2(('java','-jar','%s/jasmin.jar'%bdir,'-d',os.path.dirname(r),r))
+        print >>log, ('java','-jar','%s/jasmin.jar'%bdir,'-d',os.getcwd(),r)
+        f=os.popen2(('java','-jar','%s/jasmin.jar'%bdir,'-d',os.getcwd(),r))
         f[0].close()
         f[1].close()
     
