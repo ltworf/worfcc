@@ -44,6 +44,7 @@ def printhelp(code=0):
     print "  -t            Only performs typechecking"
     print "  -v            Print version and exits"
     print "  -O            Optimization level"
+    print "  -w            Warning level (default 0)"
 
     sys.exit(code)
 
@@ -55,7 +56,7 @@ def chkf(files):
 if __name__ == "__main__":
     assembly_only=False
     
-    s,files=getopt.getopt(sys.argv[1:],"aO:vhtl:")
+    s,files=getopt.getopt(sys.argv[1:],"aO:vhtl:w:")
     
     log=sys.stdout
     
@@ -73,6 +74,8 @@ if __name__ == "__main__":
             assembly_only=True
         elif i[0]== '-l':
             log=file(i[1],"a")
+        elif i[0]== '-w':
+            options.warningLevel= int(i[1])
     #Compile the files
     
     rfiles=[]
