@@ -1,6 +1,7 @@
 int main () {
     
-    int a=-(10+12);
+    int a=3;
+    while (a<10) a++;
     
     return 3;
 }

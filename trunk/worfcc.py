@@ -41,7 +41,6 @@ def printhelp(code=0):
     print "  -a            Only generates the jasmin assembly"
     print "  -h            Print this help and exits"
     print "  -l            Logs to a file instead than stdout"
-    print "  -r            Runs the compiled files after compiling"
     print "  -t            Only performs typechecking"
     print "  -v            Print version and exits"
     print "  -O            Optimization level"
@@ -55,13 +54,11 @@ def chkf(files):
 
 if __name__ == "__main__":
     assembly_only=False
-    run_after=False
     
-    s,files=getopt.getopt(sys.argv[1:],"aO:vhtrl:")
+    s,files=getopt.getopt(sys.argv[1:],"aO:vhtl:")
     
     log=sys.stdout
     
-    log.write("Execution \n")
     for i in s:
         if i[0] == '-t':
             chkf(files)
@@ -74,8 +71,6 @@ if __name__ == "__main__":
             options.improvementLevel=int(i[1])
         elif i[0]== '-a':
             assembly_only=True
-        elif i[0]== '-r':
-            run_after=True
         elif i[0]== '-l':
             log=file(i[1],"a")
     #Compile the files
@@ -84,10 +79,12 @@ if __name__ == "__main__":
     for i in files:
         if not os.path.exists(i):
             print >> sys.stderr, "Unable to find file %s" %i
-            sys.exit(1)
-        print>>log, "Generating assembly for %s"%i
+            sys.exit(2)
+        
         try:
             rfiles.append(compiler.ijvm_compile(i))
+            print >>log, "OK"
+            print>>log, "Generated assembly for %s"%i
         except:
             sys.exit(1)
     
@@ -98,19 +95,10 @@ if __name__ == "__main__":
     bdir=os.path.realpath(os.path.dirname(sys.argv[0]))
     for r in rfiles:
         
-        print >>log, ('java','-jar','%s/jasmin.jar'%bdir,'-d',os.getcwd(),r)
-        f=os.popen2(('java','-jar','%s/jasmin.jar'%bdir,'-d',os.getcwd(),r))
+        print >>log, ('java','-jar','%s/jasmin.jar'%bdir,'-d',os.path.dirname(r),r)
+        f=os.popen2(('java','-jar','%s/jasmin.jar'%bdir,'-d',os.path.dirname(r),r))
         f[0].close()
         f[1].close()
+        #os.wait()  Should wait, but jython seems to have problems with that
     
-    if run_after:
-        cdir=bdir+"/lib"
-        for i in files:
-            
-            os.chdir(os.path.dirname(i))
-            nn=os.path.basename(i)
-            
-            print>>log, os.path.dirname(i)
-            print>>log, "java -cp .:%s %s" % (cdir,nn[:nn.rindex('.')])
-            os.system("java -cp .:%s %s" % (cdir,nn[:nn.rindex('.')]))
         

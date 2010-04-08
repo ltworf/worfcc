@@ -98,7 +98,7 @@ def check_fnct(f,contx,t_inf):
 def check_const_expr(i,t_inf,contx):
     #Check if the condition is a boolean literal.. bah
     if isinstance(i.expr_,cpp.Absyn.Ebool):
-        print "WARNING: using constants in condition is a very poor way of programming"
+        print >> sys.stderr, "WARNING: using constants in condition is a very poor way of programming"
         if isinstance (i.expr_.bool_,cpp.Absyn.TrueLit):
             t_inf.putinfer(i.expr_,True)
         else:
