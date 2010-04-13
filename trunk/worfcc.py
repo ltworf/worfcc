@@ -22,7 +22,7 @@
 import sys
 import getopt
 import typechecker
-import compiler
+import jvm.compiler
 import options
 import os
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
             sys.exit(2)
         
         try:
-            rfiles.append(compiler.ijvm_compile(i))
+            rfiles.append(jvm.compiler.ijvm_compile(i))
             print>>sys.stderr, "OK"
             sys.stderr.flush()
             print>>log, "Generated assembly for %s"%i

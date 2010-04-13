@@ -1,7 +1,4 @@
 int main () {
-    
-    int a=3;
-    while (a<10) a++;
-    
+    int a;
     return 3;
 }
