@@ -49,45 +49,9 @@ VarNA.              VItem               ::= CIdent;
 VarVA.              VItem               ::= CIdent "=" Expr;
 (:[]).              [VItem]             ::= VItem;
 (:).                [VItem]             ::= VItem "," [VItem];
-LocalVars.          Statement           ::= Type [VItem] ";";
-Nop.                Statement           ::= ";"; --Allow empty instruction
-Return.             Statement           ::= "return" Expr ";";
-VoidReturn.         Statement           ::= "return" ";";
-Block.              Statement           ::= "{" [Statement] "}";
-While.              Statement           ::= "while" "(" Expr ")" Statement;
-DoWhile.            Statement           ::= "do" Statement "while" "(" Expr ")" ";"; --My own addition to the language
-Expression.         Statement           ::= Expr ";" ;
-IfElse.             Statement           ::= "if" "(" Expr ")" Statement "else" Statement;
-If.                 Statement           ::= "if" "(" Expr ")" Statement;
 [].                 [Expr]              ::= ;
 (:[]).              [Expr]              ::= Expr;
 (:).                [Expr]              ::= Expr "," [Expr];
-Eint.               Expr16              ::= Integer;
-Edbl.               Expr16              ::= Double;
-Ebool.              Expr16              ::= Bool;
-Estrng.             Expr16              ::= String;
-Eitm.               Expr16              ::= CIdent;
-Efun.               Expr15              ::= CIdent "(" [Expr] ")";
-Eainc.              Expr14              ::= Expr15 "++";
-Eadec.              Expr14              ::= Expr15 "--";
-Epinc.              Expr13              ::= "++" Expr14;
-Epdec.              Expr13              ::= "--" Expr14;
-ENeg.               Expr12              ::= "-" Expr13 ;
-ENot.               Expr12              ::= "!" Expr13 ;
-Emul.               Expr11              ::= Expr11 "*" Expr12;
-Ediv.               Expr11              ::= Expr11 "/" Expr12;
-Emod.               Expr11              ::= Expr11 "%" Expr12;
-Eadd.               Expr10              ::= Expr10 "+" Expr11;
-Esub.               Expr10              ::= Expr10 "-" Expr11;
-Elt.                Expr9               ::= Expr9 "<" Expr10;
-Egt.                Expr9               ::= Expr9 ">" Expr10;
-Eelt.               Expr9               ::= Expr9 "<=" Expr10;
-Eegt.               Expr9               ::= Expr9 ">=" Expr10;
-Eeql.               Expr8               ::= Expr8 "==" Expr9;
-Edif.               Expr8               ::= Expr8 "!=" Expr9;
-Eand.               Expr4               ::= Expr4 "&&" Expr5;
-Eor.                Expr3               ::= Expr3 "||" Expr4;
-Eass.               Expr2               ::= Expr3 "=" Expr2;
 coercions Expr 16 ;
 '''
 
@@ -101,14 +65,13 @@ import os.path
 import options
 
 def llvm_compile(filename):
-    print "lalal"
     '''Compiles the program into LLVM assembly'''
     prog,contx,inf=typechecker.checkfile(filename)
     
     #Gets the name of the module
-    cname='.'.join(os.path.basename(filename).split('.')[:-1])
+    mname='.'.join(os.path.basename(filename).split('.')[:-1])
     
-    
+    mod=module(prog,contx,inf,mname)
     #dname='%s/%s.j' % (os.path.dirname(filename),cname)
     #f=file(dname,"w")
     
@@ -124,21 +87,116 @@ class module():
     used to compile it.'''
     
     def __init__(self,prog,contx,inf,mname):
+        self.labelcount=-1
         self.prog=prog
         self.contx=contx
         self.inf=inf
         self.mname=mname
         
         for i in prog.listdeclaration_:
-            c=function(i,contx,inf,mname)
+            c=function(i,contx,inf,mname,self)
         pass
     
-    def addConstant(self):
+    def get_lbl(self):
+        '''Returns a module-unique id for a new label'''
+        self.labelcount+=1
+        return self.labelcount
+    
+    def add_constant(self):
         pass
     
-    
+    def get_size(self,type_):
+        if isinstance(type_,cpp.Absyn.Typeint):
+            return 32
+        elif isinstance(type_,cpp.Absyn.Typebool):
+            return 1
+        else: #/TODO REMOVE THIS!!!
+            return 128
     
 class function():
-    def __init__(self,f,contx,inf,mname):
-        print "Generating function "+ f.cident_
+    def __init__(self,f,contx,inf,mname,module):
+        self.fnct=f
+        self.contx=contx
+        self.inf=inf
+        self.mname=mname
+        self.module=module
+
+
+        #/TODO emit params as well
+        params=''
+        
+        self.emit("define i%d @%s(%s) {" % (self.module.get_size(f.type_),f.cident_,params))
+        
+        self.emit("entry:")
+        self.compile_block(f.liststatement_)
+        
+        
+        self.emit("}")
+        
+        
         pass
+    
+    def emit(self,instr):
+        
+        #/TODO just temporary
+        print instr
+    
+    def compile_block(self,statements):
+        '''LocalVars.          Statement           ::= Type [VItem] ";";
+        Nop.                Statement           ::= ";"; --Allow empty instruction
+        Return.             Statement           ::= "return" Expr ";";
+        VoidReturn.         Statement           ::= "return" ";";
+        Block.              Statement           ::= "{" [Statement] "}";
+        While.              Statement           ::= "while" "(" Expr ")" Statement;
+        DoWhile.            Statement           ::= "do" Statement "while" "(" Expr ")" ";"; --My own addition to the language
+        Expression.         Statement           ::= Expr ";" ;
+        IfElse.             Statement           ::= "if" "(" Expr ")" Statement "else" Statement;
+        If.                 Statement           ::= "if" "(" Expr ")" Statement;'''
+        for i in statements:
+            if isinstance(i,cpp.Absyn.Expression):
+                self.compile_expr(i.expr_)
+        pass
+    
+    def compile_expr(self,expr):
+        '''Eint.               Expr16              ::= Integer;
+        Edbl.               Expr16              ::= Double;
+        Ebool.              Expr16              ::= Bool;
+        Estrng.             Expr16              ::= String;
+        Eitm.               Expr16              ::= CIdent;
+        Efun.               Expr15              ::= CIdent "(" [Expr] ")";
+        Eainc.              Expr14              ::= Expr15 "++";
+        Eadec.              Expr14              ::= Expr15 "--";
+        Epinc.              Expr13              ::= "++" Expr14;
+        Epdec.              Expr13              ::= "--" Expr14;
+        ENeg.               Expr12              ::= "-" Expr13 ;
+        ENot.               Expr12              ::= "!" Expr13 ;
+        Emul.               Expr11              ::= Expr11 "*" Expr12;
+        Ediv.               Expr11              ::= Expr11 "/" Expr12;
+        Emod.               Expr11              ::= Expr11 "%" Expr12;
+        Eadd.               Expr10              ::= Expr10 "+" Expr11;
+        Esub.               Expr10              ::= Expr10 "-" Expr11;
+        Elt.                Expr9               ::= Expr9 "<" Expr10;
+        Egt.                Expr9               ::= Expr9 ">" Expr10;
+        Eelt.               Expr9               ::= Expr9 "<=" Expr10;
+        Eegt.               Expr9               ::= Expr9 ">=" Expr10;
+        Eeql.               Expr8               ::= Expr8 "==" Expr9;
+        Edif.               Expr8               ::= Expr8 "!=" Expr9;
+        Eand.               Expr4               ::= Expr4 "&&" Expr5;
+        Eor.                Expr3               ::= Expr3 "||" Expr4;
+        Eass.               Expr2               ::= Expr3 "=" Expr2;'''
+
+        pass
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
