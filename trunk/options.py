@@ -21,3 +21,4 @@
 
 improvementLevel=10
 warningLevel=0
+target="llvm"

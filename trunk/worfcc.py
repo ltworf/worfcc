@@ -23,6 +23,7 @@ import sys
 import getopt
 import typechecker
 import jvm.compiler
+import llvm.compiler
 import options
 import os
 
@@ -84,13 +85,16 @@ if __name__ == "__main__":
             print >> sys.stderr, "Unable to find file %s" %i
             sys.exit(2)
         
-        try:
+        #try:
+        if options.target=='jvm':
             rfiles.append(jvm.compiler.ijvm_compile(i))
-            print>>sys.stderr, "OK"
-            sys.stderr.flush()
-            print>>log, "Generated assembly for %s"%i
-        except:
-            sys.exit(1)
+        elif options.target=='llvm':
+            rfiles.append(llvm.compiler.llvm_compile(i))
+        print>>sys.stderr, "OK"
+        sys.stderr.flush()
+        print>>log, "Generated assembly for %s"%i
+        #except:
+        #    sys.exit(1)
     
     if assembly_only:
         sys.exit(0)
@@ -98,11 +102,13 @@ if __name__ == "__main__":
     
     bdir=os.path.realpath(os.path.dirname(sys.argv[0]))
     for r in rfiles:
-        
-        print >>log, ('java','-jar','%s/jasmin.jar'%bdir,'-d',os.path.dirname(r),r)
-        f=os.popen2(('java','-jar','%s/jasmin.jar'%bdir,'-d',os.path.dirname(r),r))
-        f[0].close()
-        f[1].close()
-        #os.wait()  Should wait, but jython seems to have problems with that
-    
+        if options.target=='jvm':
+            print >>log, ('java','-jar','%s/jasmin.jar'%bdir,'-d',os.path.dirname(r),r)
+            f=os.popen2(('java','-jar','%s/jasmin.jar'%bdir,'-d',os.path.dirname(r),r))
+            f[0].close()
+            f[1].close()
+            #os.wait()  Should wait, but jython seems to have problems with that
+        elif options.target=='llvm':
+            #/TODO link the output file
+            pass
         
