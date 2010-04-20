@@ -1,3 +1,4 @@
 define i32 @main() {
-	ret i32 0
+	%t0 = add i32 0 , 5
+	ret i32 %t0
 }

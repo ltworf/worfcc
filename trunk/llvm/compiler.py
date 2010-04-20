@@ -120,6 +120,8 @@ class function():
         self.inf=inf
         self.mname=mname
         self.module=module
+        
+        self.register=-1
 
 
         #/TODO emit params as well
@@ -135,6 +137,11 @@ class function():
         
         
         pass
+    
+    def get_register_id(self):
+        self.register+=1
+        return self.register
+        
     
     def emit(self,instr):
         
@@ -158,7 +165,16 @@ class function():
         pass
     
     def compile_expr(self,expr):
-        '''Eint.               Expr16              ::= Integer;
+        
+        if isinstance(expr,cpp.Absyn.Eint):
+            id_=self.get_register_id()
+            
+            self.emit("%%t%d = add i%d 0 , %d" % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
+            return id_
+            
+            
+        
+        '''
         Edbl.               Expr16              ::= Double;
         Ebool.              Expr16              ::= Bool;
         Estrng.             Expr16              ::= String;
