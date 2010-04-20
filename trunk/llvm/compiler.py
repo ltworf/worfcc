@@ -71,15 +71,14 @@ def llvm_compile(filename):
     mname='.'.join(os.path.basename(filename).split('.')[:-1])
     
     mod=module(prog,contx,inf,mname)
-    #dname='%s/%s.j' % (os.path.dirname(filename),cname)
-    #f=file(dname,"w")
     
-    #f.write( class_header(cname))
-    #for i in prog.listdeclaration_:
-    #    c=cfunction(i,inf,contx,cname)
-    #    f.write(c.fcompile())
-    #f.close()
-    #return dname
+    dname='%s/%s.ll' % (os.path.dirname(filename),mname)
+    f=file(dname,"w")
+    
+    for i in mod.code:
+        f.write('%s\n'% i)
+    f.close()
+    return dname
 
 class module():
     '''This class contains the description of a compilation module and can be
@@ -91,9 +90,13 @@ class module():
         self.contx=contx
         self.inf=inf
         self.mname=mname
+        self.code=[]
         
         for i in prog.listdeclaration_:
             c=function(i,contx,inf,mname,self)
+            for j in c.code:
+                self.code.append(j)
+            
         pass
     
     def get_lbl(self):
@@ -143,7 +146,9 @@ class function():
         
         #Context to keep trace of the new names of the vars
         self.var_contx=lcontext.v_context()
-
+        
+        #Code
+        self.code=[]
 
         #/TODO emit params as well
         params=''
@@ -169,7 +174,7 @@ class function():
         
     
     def emit(self,instr):
-        
+        self.code.append(instr)
         #/TODO just temporary
         print instr
     
@@ -195,8 +200,6 @@ class function():
             elif isinstance(i,cpp.Absyn.Block):
                 self.compile_block(i.liststatement_)
             elif isinstance(i,cpp.Absyn.LocalVars):
-                #VarNA.              VItem               ::= CIdent;
-                #VarVA.              VItem               ::= CIdent "=" Expr;
                 size=self.module.get_size(i.type_)
                 for j in i.listvitem_:
                     var=self.get_var_name()
@@ -204,6 +207,7 @@ class function():
                     self.emit('%s = alloca i%d' % (var,size))
                     
                     if isinstance(j,cpp.Absyn.VarNA):
+                        #Inits the var to 0
                         self.emit('store i%d 0, i%d* %s' % (size,size,var))
                     elif isinstance(j,cpp.Absyn.VarVA):
                         r1=self.compile_expr(j.expr_)
@@ -235,21 +239,40 @@ class function():
             self.emit('%s = load i%d* %s' % (id_,expr_size,var))
         #Assignment (as expression, not as statement)
         elif isinstance(expr,cpp.Absyn.Eass):
-            #Eass.               Expr2               ::= Expr3 "=" Expr2;
             var=self.var_contx.get(expr.expr_1.cident_)
             r1=self.compile_expr(expr.expr_2)
             self.emit('store i%d %s, i%d* %s' % (expr_size,r1,expr_size,var))
             return r1
-            
+        #Pre and post increment/decrement
+        elif isinstance(expr,cpp.Absyn.Eainc):
+            r1=self.compile_expr(expr.expr_)
+            self.emit('%s = add i%d 1 , %s' % (id_,expr_size,r1))
+            var=self.var_contx.get(expr.expr_.cident_)
+            self.emit('store i%d %s, i%d* %s' % (expr_size,id_,expr_size,var))
+            return r1
+        elif isinstance(expr,cpp.Absyn.Eadec):
+            r1=self.compile_expr(expr.expr_)
+            self.emit('%s = sub i%d %s , 1' % (id_,expr_size,r1))
+            var=self.var_contx.get(expr.expr_.cident_)
+            self.emit('store i%d %s, i%d* %s' % (expr_size,id_,expr_size,var))
+            return r1
+        elif isinstance(expr,cpp.Absyn.Epinc):
+            r1=self.compile_expr(expr.expr_)
+            self.emit('%s = add i%d 1 , %s' % (id_,expr_size,r1))
+            var=self.var_contx.get(expr.expr_.cident_)
+            self.emit('store i%d %s, i%d* %s' % (expr_size,id_,expr_size,var))
+        elif isinstance(expr,cpp.Absyn.Epdec):
+            r1=self.compile_expr(expr.expr_)
+            self.emit('%s = sub i%d %s , 1' % (id_,expr_size,r1))
+            var=self.var_contx.get(expr.expr_.cident_)
+            self.emit('store i%d %s, i%d* %s' % (expr_size,id_,expr_size,var))
+        
+        
         '''
         Edbl.               Expr16              ::= Double;
         Ebool.              Expr16              ::= Bool;
         Estrng.             Expr16              ::= String;
         Efun.               Expr15              ::= CIdent "(" [Expr] ")";
-        Eainc.              Expr14              ::= Expr15 "++";
-        Eadec.              Expr14              ::= Expr15 "--";
-        Epinc.              Expr13              ::= "++" Expr14;
-        Epdec.              Expr13              ::= "--" Expr14;
         ENeg.               Expr12              ::= "-" Expr13 ;
         ENot.               Expr12              ::= "!" Expr13 ;
         Elt.                Expr9               ::= Expr9 "<" Expr10;

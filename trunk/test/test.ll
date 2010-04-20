@@ -1,15 +1,14 @@
-define i32 @main() {                                                                                                                               
-entry:                                                                                                                                             
+define i32 @main() {
+entry:
 %v_0 = alloca i32
-store i32 0, i32* %v_0
+store i32 10, i32* %v_0
 %v_1 = alloca i32
 store i32 0, i32* %v_1
-%t2 = add i32 5 , 10
+%t4 = load i32* %v_0
+%t3 = add i32 1 , %t4
+store i32 %t3, i32* %v_0
+%t2 = mul i32 %t3 , 3
 store i32 %t2, i32* %v_1
-store i32 %t2, i32* %v_0
 %t6 = load i32* %v_1
-%t7 = load i32* %v_0
-%t5 = add i32 %t6 , %t7
-ret i32 %t5
+ret i32 %t6
 }
-
