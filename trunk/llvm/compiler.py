@@ -149,18 +149,38 @@ class function():
         
         #Code
         self.code=[]
+        
+        
+        self.var_contx.push()
 
-        #/TODO emit params as well
-        params=''
+        args=[]
+        par=0
+        for i in f.listargument_:
+            size=module.get_size(i.type_)
+            p='%%par_%d' % par
+            args.insert(0,'i%d %s' % (size,p))
+            par+=1
+        params=','.join(args)
         
         self.emit("define i%d @%s(%s) {" % (self.module.get_size(f.type_),f.cident_,params))
         
         self.emit("entry:")
+        
+        #Puts params to the stack
+        par=0
+        for i in f.listargument_:
+            var=self.get_var_name()
+            self.var_contx.put(i.cident_,var)
+            self.emit('%s = alloca i%d' % (var,size))
+            p='%%par_%d' % par
+            self.emit('store i%d %s, i%d* %s' % (size,p,size,var))
+            par+=1
+        
         self.compile_block(f.liststatement_)
         
         self.emit("}")
         
-        
+        self.var_contx.pop()
         pass
     
     def get_register_id(self):
@@ -266,13 +286,29 @@ class function():
             self.emit('%s = sub i%d %s , 1' % (id_,expr_size,r1))
             var=self.var_contx.get(expr.expr_.cident_)
             self.emit('store i%d %s, i%d* %s' % (expr_size,id_,expr_size,var))
-        
+        #Function call
+        elif isinstance(expr,cpp.Absyn.Efun):
+            #Efun.               Expr15              ::= CIdent "(" [Expr] ")";
+            
+            parlist=[]
+            for i in expr.listexpr_:
+                r=self.compile_expr(i)
+                size=self.module.get_size( self.inf.getinfer(i))
+                parlist.insert(0,'i%d %s'% (size,r))
+            
+            params=','.join(parlist)
+            
+            if isinstance(self.inf.getinfer(expr),cpp.Absyn.Typevoid):
+                #Call to void
+                self.emit ('call void @%s (%s)' % (expr.cident_,params))
+            else:
+                #Normal call with result
+                self.emit ('%s = call i%d @%s (%s)' % (id_,expr_size,expr.cident_,params))
         
         '''
         Edbl.               Expr16              ::= Double;
         Ebool.              Expr16              ::= Bool;
         Estrng.             Expr16              ::= String;
-        Efun.               Expr15              ::= CIdent "(" [Expr] ")";
         ENeg.               Expr12              ::= "-" Expr13 ;
         ENot.               Expr12              ::= "!" Expr13 ;
         Elt.                Expr9               ::= Expr9 "<" Expr10;

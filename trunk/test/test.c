@@ -1,5 +1,7 @@
 int main () {
-    int a=10,d;
-    d=++a*3;
-    return d;
+    return add(1,2);
+}
+
+int add(int a, int b) {
+    return a+b;
 }
