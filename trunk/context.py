@@ -100,6 +100,7 @@ class GeneralContext:
     def isInLastContext(self,ident):
         '''True if an identifier already exists in the top context'''
         return ident in self.contexts[len(self.contexts)-1].table
+
 class Context:
     def __init__(self,name):
         self.table={}

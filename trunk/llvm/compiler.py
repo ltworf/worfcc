@@ -45,8 +45,6 @@ Argument.           Argument            ::= Type CIdent;
 (:[]).              [Argument]          ::= Argument;
 (:).                [Argument]          ::= Argument "," [Argument];
 Fnct.               Declaration         ::= Type CIdent "(" [Argument] ")" "{" [Statement] "}"; --2nd part of function declaration. Splitted for conflicts problems
-VarNA.              VItem               ::= CIdent;
-VarVA.              VItem               ::= CIdent "=" Expr;
 (:[]).              [VItem]             ::= VItem;
 (:).                [VItem]             ::= VItem "," [VItem];
 [].                 [Expr]              ::= ;
@@ -63,6 +61,7 @@ import inferred
 import improve
 import os.path
 import options
+import lcontext
 
 def llvm_compile(filename):
     '''Compiles the program into LLVM assembly'''
@@ -120,13 +119,30 @@ class function():
             cpp.Absyn.Typedouble: {cpp.Absyn.Emul:'fmul',cpp.Absyn.Ediv:'fdiv',cpp.Absyn.Emod:'frem',cpp.Absyn.Eadd:'fadd',cpp.Absyn.Esub:'fsub'},
         }
         
+        
+        #Function to compile
         self.fnct=f
+        
+        #Context from typechecker (only contains the other functions)
         self.contx=contx
+        
+        #Inferred types for the expression (see inferred module)
         self.inf=inf
+        
+        #Module name
         self.mname=mname
+        
+        #Module class (that called this method)
         self.module=module
         
+        #Counter for the register
         self.register=-1
+        
+        #Counter for the vars
+        self.var_name=-1
+        
+        #Context to keep trace of the new names of the vars
+        self.var_contx=lcontext.v_context()
 
 
         #/TODO emit params as well
@@ -137,7 +153,6 @@ class function():
         self.emit("entry:")
         self.compile_block(f.liststatement_)
         
-        
         self.emit("}")
         
         
@@ -146,6 +161,11 @@ class function():
     def get_register_id(self):
         self.register+=1
         return self.register
+        
+    def get_var_name(self):
+        '''Returns a name for a new variable'''
+        self.var_name+=1
+        return '%%v_%d' % self.var_name
         
     
     def emit(self,instr):
@@ -156,13 +176,14 @@ class function():
     def compile_block(self,statements):
         '''LocalVars.          Statement           ::= Type [VItem] ";";
         Nop.                Statement           ::= ";"; --Allow empty instruction
-        Return.             Statement           ::= "return" Expr ";";
         Block.              Statement           ::= "{" [Statement] "}";
         While.              Statement           ::= "while" "(" Expr ")" Statement;
         DoWhile.            Statement           ::= "do" Statement "while" "(" Expr ")" ";"; --My own addition to the language
-        Expression.         Statement           ::= Expr ";" ;
         IfElse.             Statement           ::= "if" "(" Expr ")" Statement "else" Statement;
         If.                 Statement           ::= "if" "(" Expr ")" Statement;'''
+        
+        self.var_contx.push()
+        
         for i in statements:
             if isinstance(i,cpp.Absyn.Expression):
                 self.compile_expr(i.expr_)
@@ -170,24 +191,46 @@ class function():
                 self.emit('ret void')
             elif isinstance(i,cpp.Absyn.Return):
                 r1=self.compile_expr(i.expr_)
-                self.emit('ret i%d %%t%d' % (self.module.get_size( self.inf.getinfer(i.expr_)),r1))
+                self.emit('ret i%d %s' % (self.module.get_size( self.inf.getinfer(i.expr_)),r1))
+            elif isinstance(i,cpp.Absyn.LocalVars):
+                #VarNA.              VItem               ::= CIdent;
+                #VarVA.              VItem               ::= CIdent "=" Expr;
+                size=self.module.get_size(i.type_)
+                for j in i.listvitem_:
+                    var=self.get_var_name()
+                    self.var_contx.put(j.cident_,var)
+                    self.emit('%s = alloca i%d' % (var,size))
+                    
+                    if isinstance(j,cpp.Absyn.VarNA):
+                        self.emit('store i%d 0, i%d* %s' % (size,size,var))
+                    elif isinstance(j,cpp.Absyn.VarVA):
+                        r1=self.compile_expr(j.expr_)
+                        self.emit('store i%d %s, i%d* %s' % (size,r1,size,var))
+                     
+        
+        
+        self.var_contx.pop()
+        
         pass
     
     def compile_expr(self,expr):
-        id_=self.get_register_id()
+        id_='%%t%d' % self.get_register_id()
+        expr_size=self.module.get_size( self.inf.getinfer(expr))
         
         if isinstance(expr,cpp.Absyn.Eint):
-            self.emit('%%t%d = add i%d 0 , %d' % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
+            #self.emit('%s = add i%d 0 , %d' % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
+            return str(expr.integer_)
         #Arithmetic instructions
         elif expr.__class__ in (cpp.Absyn.Emul,cpp.Absyn.Ediv,cpp.Absyn.Emod,cpp.Absyn.Eadd,cpp.Absyn.Esub):
             r1=self.compile_expr(expr.expr_1)
             r2=self.compile_expr(expr.expr_2)
            
             op=self.aritm[self.inf.getinfer(expr).__class__][expr.__class__]
-            self.emit('%%t%d = %s i%d %%t%d , %%t%d' % (id_,op,self.module.get_size( self.inf.getinfer(expr)),r1,r2 ))
-           
-            pass
-       
+            self.emit('%s = %s i%d %s , %s' % (id_,op,expr_size,r1,r2 ))
+        #Variable
+        elif isinstance(expr,cpp.Absyn.Eitm):
+            var=self.var_contx.get(expr.cident_)
+            self.emit('%s = load i%d* %s' % (id_,expr_size,var))
        
        
             
