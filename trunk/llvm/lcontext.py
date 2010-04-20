@@ -28,10 +28,7 @@ class v_context:
         
     def put (self,ident,obj):
         '''Puts an identifier in the top context (if it is not already declared in that context)'''
-        if not self.isInLastContext(ident):
-            self.contexts[len(self.contexts)-1].put(ident,obj)
-        else:
-            err.error(ident+" is already defined in this context",self)
+        self.contexts[len(self.contexts)-1].put(ident,obj)
     def get(self,ident):
         '''Gets an identifier from a context, exploring from the top to the bottom'''
         for i in range(len(self.contexts)-1,-1,-1):
@@ -39,7 +36,7 @@ class v_context:
                 return self.contexts[i].get(ident)
             except:
                 pass
-        err.error(ident+ " is undefined",self)
+        raise Exception('Unable to get desired %s'%ident)
 
     def push(self):
         '''Pushes an empty context on the top of the stack.'''

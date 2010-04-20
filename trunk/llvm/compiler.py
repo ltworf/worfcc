@@ -75,6 +75,16 @@ def llvm_compile(filename):
     dname='%s/%s.ll' % (os.path.dirname(filename),mname)
     f=file(dname,"w")
     
+    
+    #Declarations
+    f.write('declare void @printInt(i32 %x)\n')
+    f.write('declare void @printDouble(double %x)\n')
+    f.write('declare void @printString(i8* %s)\n')
+    f.write('declare i32 @readInt()\n')
+    f.write('declare double @readDouble()\n')
+
+
+    
     for i in mod.code:
         f.write('%s\n'% i)
     f.close()
@@ -86,6 +96,9 @@ class module():
     
     def __init__(self,prog,contx,inf,mname):
         self.labelcount=-1
+        self.constcount=0
+        self.const={}
+        
         self.prog=prog
         self.contx=contx
         self.inf=inf
@@ -96,7 +109,11 @@ class module():
             c=function(i,contx,inf,mname,self)
             for j in c.code:
                 self.code.append(j)
-            
+        
+        
+        #Adding consts in the header
+        for i in self.const:
+            self.code.insert(0,'%s = internal constant [%d x i8] c"%s\\00"' % (self.const[i],len(i)+1,i))
         pass
     
     def get_lbl(self):
@@ -104,16 +121,21 @@ class module():
         self.labelcount+=1
         return self.labelcount
     
-    def add_constant(self):
-        pass
+    def add_constant(self,cnst):
+        if cnst not in self.const:
+            self.const[cnst]='@const_%d' % self.constcount
+            self.constcount+=1
+        return self.const[cnst]
     
     def get_size(self,type_):
         if isinstance(type_,cpp.Absyn.Typeint):
-            return 32
+            return 'i32'
         elif isinstance(type_,cpp.Absyn.Typebool):
-            return 1
+            return 'i1'
+        elif isinstance(type_,cpp.Absyn.Typestrng):
+            return 'i8*'
         else: #/TODO REMOVE THIS!!!
-            return 128
+            return '128'
     
 class function():
     def __init__(self,f,contx,inf,mname,module):
@@ -158,11 +180,11 @@ class function():
         for i in f.listargument_:
             size=module.get_size(i.type_)
             p='%%par_%d' % par
-            args.insert(0,'i%d %s' % (size,p))
+            args.insert(0,'%s %s' % (size,p))
             par+=1
         params=','.join(args)
         
-        self.emit("define i%d @%s(%s) {" % (self.module.get_size(f.type_),f.cident_,params))
+        self.emit("define %s @%s(%s) {" % (self.module.get_size(f.type_),f.cident_,params))
         
         self.emit("entry:")
         
@@ -171,9 +193,9 @@ class function():
         for i in f.listargument_:
             var=self.get_var_name()
             self.var_contx.put(i.cident_,var)
-            self.emit('%s = alloca i%d' % (var,size))
+            self.emit('%s = alloca %s' % (var,size))
             p='%%par_%d' % par
-            self.emit('store i%d %s, i%d* %s' % (size,p,size,var))
+            self.emit('store %s %s, %s* %s' % (size,p,size,var))
             par+=1
         
         self.compile_block(f.liststatement_)
@@ -216,7 +238,7 @@ class function():
                 self.emit('ret void')
             elif isinstance(i,cpp.Absyn.Return):
                 r1=self.compile_expr(i.expr_)
-                self.emit('ret i%d %s' % (self.module.get_size( self.inf.getinfer(i.expr_)),r1))
+                self.emit('ret %s %s' % (self.module.get_size( self.inf.getinfer(i.expr_)),r1))
             elif isinstance(i,cpp.Absyn.Block):
                 self.compile_block(i.liststatement_)
             elif isinstance(i,cpp.Absyn.LocalVars):
@@ -224,15 +246,14 @@ class function():
                 for j in i.listvitem_:
                     var=self.get_var_name()
                     self.var_contx.put(j.cident_,var)
-                    self.emit('%s = alloca i%d' % (var,size))
+                    self.emit('%s = alloca %s' % (var,size))
                     
                     if isinstance(j,cpp.Absyn.VarNA):
                         #Inits the var to 0
-                        self.emit('store i%d 0, i%d* %s' % (size,size,var))
+                        self.emit('store %s 0, %s* %s' % (size,size,var))
                     elif isinstance(j,cpp.Absyn.VarVA):
                         r1=self.compile_expr(j.expr_)
-                        self.emit('store i%d %s, i%d* %s' % (size,r1,size,var))
-                     
+                        self.emit('store %s %s, %s* %s' % (size,r1,size,var))
         
         if new_context:
             self.var_contx.pop()
@@ -244,48 +265,51 @@ class function():
         expr_size=self.module.get_size( self.inf.getinfer(expr))
         
         if isinstance(expr,cpp.Absyn.Eint):
-            #self.emit('%s = add i%d 0 , %d' % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
+            #self.emit('%s = add %s 0 , %d' % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
             return str(expr.integer_)
+        elif isinstance(expr,cpp.Absyn.Estrng):
+            handle=self.module.add_constant(expr.string_)
+            self.emit('%s = bitcast [%d x i8]* %s to i8*' % (id_,len(expr.string_)+1,handle))
         #Arithmetic instructions
         elif expr.__class__ in (cpp.Absyn.Emul,cpp.Absyn.Ediv,cpp.Absyn.Emod,cpp.Absyn.Eadd,cpp.Absyn.Esub):
             r1=self.compile_expr(expr.expr_1)
             r2=self.compile_expr(expr.expr_2)
            
             op=self.aritm[self.inf.getinfer(expr).__class__][expr.__class__]
-            self.emit('%s = %s i%d %s , %s' % (id_,op,expr_size,r1,r2 ))
+            self.emit('%s = %s %s %s , %s' % (id_,op,expr_size,r1,r2 ))
         #Variable
         elif isinstance(expr,cpp.Absyn.Eitm):
             var=self.var_contx.get(expr.cident_)
-            self.emit('%s = load i%d* %s' % (id_,expr_size,var))
+            self.emit('%s = load %s* %s' % (id_,expr_size,var))
         #Assignment (as expression, not as statement)
         elif isinstance(expr,cpp.Absyn.Eass):
             var=self.var_contx.get(expr.expr_1.cident_)
             r1=self.compile_expr(expr.expr_2)
-            self.emit('store i%d %s, i%d* %s' % (expr_size,r1,expr_size,var))
+            self.emit('store %s %s, %s* %s' % (expr_size,r1,expr_size,var))
             return r1
         #Pre and post increment/decrement
         elif isinstance(expr,cpp.Absyn.Eainc):
             r1=self.compile_expr(expr.expr_)
-            self.emit('%s = add i%d 1 , %s' % (id_,expr_size,r1))
+            self.emit('%s = add %s 1 , %s' % (id_,expr_size,r1))
             var=self.var_contx.get(expr.expr_.cident_)
-            self.emit('store i%d %s, i%d* %s' % (expr_size,id_,expr_size,var))
+            self.emit('store %s %s, %s* %s' % (expr_size,id_,expr_size,var))
             return r1
         elif isinstance(expr,cpp.Absyn.Eadec):
             r1=self.compile_expr(expr.expr_)
-            self.emit('%s = sub i%d %s , 1' % (id_,expr_size,r1))
+            self.emit('%s = sub %s %s , 1' % (id_,expr_size,r1))
             var=self.var_contx.get(expr.expr_.cident_)
-            self.emit('store i%d %s, i%d* %s' % (expr_size,id_,expr_size,var))
+            self.emit('store %s %s, %s* %s' % (expr_size,id_,expr_size,var))
             return r1
         elif isinstance(expr,cpp.Absyn.Epinc):
             r1=self.compile_expr(expr.expr_)
-            self.emit('%s = add i%d 1 , %s' % (id_,expr_size,r1))
+            self.emit('%s = add %s 1 , %s' % (id_,expr_size,r1))
             var=self.var_contx.get(expr.expr_.cident_)
-            self.emit('store i%d %s, i%d* %s' % (expr_size,id_,expr_size,var))
+            self.emit('store %s %s, %s* %s' % (expr_size,id_,expr_size,var))
         elif isinstance(expr,cpp.Absyn.Epdec):
             r1=self.compile_expr(expr.expr_)
-            self.emit('%s = sub i%d %s , 1' % (id_,expr_size,r1))
+            self.emit('%s = sub %s %s , 1' % (id_,expr_size,r1))
             var=self.var_contx.get(expr.expr_.cident_)
-            self.emit('store i%d %s, i%d* %s' % (expr_size,id_,expr_size,var))
+            self.emit('store %s %s, %s* %s' % (expr_size,id_,expr_size,var))
         #Function call
         elif isinstance(expr,cpp.Absyn.Efun):
             #Efun.               Expr15              ::= CIdent "(" [Expr] ")";
@@ -294,7 +318,7 @@ class function():
             for i in expr.listexpr_:
                 r=self.compile_expr(i)
                 size=self.module.get_size( self.inf.getinfer(i))
-                parlist.insert(0,'i%d %s'% (size,r))
+                parlist.insert(0,'%s %s'% (size,r))
             
             params=','.join(parlist)
             
@@ -303,12 +327,11 @@ class function():
                 self.emit ('call void @%s (%s)' % (expr.cident_,params))
             else:
                 #Normal call with result
-                self.emit ('%s = call i%d @%s (%s)' % (id_,expr_size,expr.cident_,params))
+                self.emit ('%s = call %s @%s (%s)' % (id_,expr_size,expr.cident_,params))
         
         '''
         Edbl.               Expr16              ::= Double;
         Ebool.              Expr16              ::= Bool;
-        Estrng.             Expr16              ::= String;
         ENeg.               Expr12              ::= "-" Expr13 ;
         ENot.               Expr12              ::= "!" Expr13 ;
         Elt.                Expr9               ::= Expr9 "<" Expr10;
