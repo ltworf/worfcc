@@ -173,16 +173,16 @@ class function():
         #/TODO just temporary
         print instr
     
-    def compile_block(self,statements):
-        '''LocalVars.          Statement           ::= Type [VItem] ";";
+    def compile_block(self,statements,new_context=True):
+        '''
         Nop.                Statement           ::= ";"; --Allow empty instruction
         Block.              Statement           ::= "{" [Statement] "}";
         While.              Statement           ::= "while" "(" Expr ")" Statement;
         DoWhile.            Statement           ::= "do" Statement "while" "(" Expr ")" ";"; --My own addition to the language
         IfElse.             Statement           ::= "if" "(" Expr ")" Statement "else" Statement;
         If.                 Statement           ::= "if" "(" Expr ")" Statement;'''
-        
-        self.var_contx.push()
+        if new_context:
+            self.var_contx.push()
         
         for i in statements:
             if isinstance(i,cpp.Absyn.Expression):
@@ -192,6 +192,8 @@ class function():
             elif isinstance(i,cpp.Absyn.Return):
                 r1=self.compile_expr(i.expr_)
                 self.emit('ret i%d %s' % (self.module.get_size( self.inf.getinfer(i.expr_)),r1))
+            elif isinstance(i,cpp.Absyn.Block):
+                self.compile_block(i.liststatement_)
             elif isinstance(i,cpp.Absyn.LocalVars):
                 #VarNA.              VItem               ::= CIdent;
                 #VarVA.              VItem               ::= CIdent "=" Expr;
@@ -208,8 +210,8 @@ class function():
                         self.emit('store i%d %s, i%d* %s' % (size,r1,size,var))
                      
         
-        
-        self.var_contx.pop()
+        if new_context:
+            self.var_contx.pop()
         
         pass
     
@@ -231,15 +233,18 @@ class function():
         elif isinstance(expr,cpp.Absyn.Eitm):
             var=self.var_contx.get(expr.cident_)
             self.emit('%s = load i%d* %s' % (id_,expr_size,var))
-       
-       
+        #Assignment (as expression, not as statement)
+        elif isinstance(expr,cpp.Absyn.Eass):
+            #Eass.               Expr2               ::= Expr3 "=" Expr2;
+            var=self.var_contx.get(expr.expr_1.cident_)
+            r1=self.compile_expr(expr.expr_2)
+            self.emit('store i%d %s, i%d* %s' % (expr_size,r1,expr_size,var))
+            return r1
             
-        
         '''
         Edbl.               Expr16              ::= Double;
         Ebool.              Expr16              ::= Bool;
         Estrng.             Expr16              ::= String;
-        Eitm.               Expr16              ::= CIdent;
         Efun.               Expr15              ::= CIdent "(" [Expr] ")";
         Eainc.              Expr14              ::= Expr15 "++";
         Eadec.              Expr14              ::= Expr15 "--";
@@ -255,7 +260,7 @@ class function():
         Edif.               Expr8               ::= Expr8 "!=" Expr9;
         Eand.               Expr4               ::= Expr4 "&&" Expr5;
         Eor.                Expr3               ::= Expr3 "||" Expr4;
-        Eass.               Expr2               ::= Expr3 "=" Expr2;'''
+        '''
 
         return id_
     
