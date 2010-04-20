@@ -165,13 +165,32 @@ class function():
         pass
     
     def compile_expr(self,expr):
+        id_=self.get_register_id()
         
         if isinstance(expr,cpp.Absyn.Eint):
-            id_=self.get_register_id()
-            
             self.emit("%%t%d = add i%d 0 , %d" % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
-            return id_
             
+        
+       
+       
+       
+       
+       #Arithmetic instructions
+       elif expr.__class__ in (cpp.Absyn.Emul,cpp.Absyn.Ediv,cpp.Absyn.Emod,cpp.Absyn.Eadd,cpp.Absyn.Esub):
+           r1=self.compile_expr(expr.expr_1)
+           r2=self.compile_expr(expr.expr_2)
+           
+           aritm= {
+               cpp.Absyn.Typeint: {cpp.Absyn.Emul:'mul',cpp.Absyn.Ediv'sdiv',cpp.Absyn.Emod:'srem',cpp.Absyn.Eadd:'add',cpp.Absyn.Esub:'sub'},
+               cpp.Absyn.Typedouble: {cpp.Absyn.Emul:'fmul',cpp.Absyn.Ediv'fdiv',cpp.Absyn.Emod:'frem',cpp.Absyn.Eadd:'fadd',cpp.Absyn.Esub:'fsub'},
+               }
+           
+           print aritm[self.inf.getinfer(expr)][expr.__class__]
+           
+           pass
+       
+       
+       
             
         
         '''
@@ -186,11 +205,6 @@ class function():
         Epdec.              Expr13              ::= "--" Expr14;
         ENeg.               Expr12              ::= "-" Expr13 ;
         ENot.               Expr12              ::= "!" Expr13 ;
-        Emul.               Expr11              ::= Expr11 "*" Expr12;
-        Ediv.               Expr11              ::= Expr11 "/" Expr12;
-        Emod.               Expr11              ::= Expr11 "%" Expr12;
-        Eadd.               Expr10              ::= Expr10 "+" Expr11;
-        Esub.               Expr10              ::= Expr10 "-" Expr11;
         Elt.                Expr9               ::= Expr9 "<" Expr10;
         Egt.                Expr9               ::= Expr9 ">" Expr10;
         Eelt.               Expr9               ::= Expr9 "<=" Expr10;
@@ -201,8 +215,7 @@ class function():
         Eor.                Expr3               ::= Expr3 "||" Expr4;
         Eass.               Expr2               ::= Expr3 "=" Expr2;'''
 
-        pass
-    
+        return id_
     
     
     
