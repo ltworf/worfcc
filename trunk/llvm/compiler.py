@@ -115,6 +115,11 @@ class module():
     
 class function():
     def __init__(self,f,contx,inf,mname,module):
+        self.aritm= {# Dictionary to compile operations with integers and doubles
+            cpp.Absyn.Typeint: {cpp.Absyn.Emul:'mul',cpp.Absyn.Ediv:'sdiv',cpp.Absyn.Emod:'srem',cpp.Absyn.Eadd:'add',cpp.Absyn.Esub:'sub'},
+            cpp.Absyn.Typedouble: {cpp.Absyn.Emul:'fmul',cpp.Absyn.Ediv:'fdiv',cpp.Absyn.Emod:'frem',cpp.Absyn.Eadd:'fadd',cpp.Absyn.Esub:'fsub'},
+        }
+        
         self.fnct=f
         self.contx=contx
         self.inf=inf
@@ -152,7 +157,6 @@ class function():
         '''LocalVars.          Statement           ::= Type [VItem] ";";
         Nop.                Statement           ::= ";"; --Allow empty instruction
         Return.             Statement           ::= "return" Expr ";";
-        VoidReturn.         Statement           ::= "return" ";";
         Block.              Statement           ::= "{" [Statement] "}";
         While.              Statement           ::= "while" "(" Expr ")" Statement;
         DoWhile.            Statement           ::= "do" Statement "while" "(" Expr ")" ";"; --My own addition to the language
@@ -162,32 +166,27 @@ class function():
         for i in statements:
             if isinstance(i,cpp.Absyn.Expression):
                 self.compile_expr(i.expr_)
+            elif isinstance(i,cpp.Absyn.VoidReturn):
+                self.emit('ret void')
+            elif isinstance(i,cpp.Absyn.Return):
+                r1=self.compile_expr(i.expr_)
+                self.emit('ret i%d %%t%d' % (self.module.get_size( self.inf.getinfer(i.expr_)),r1))
         pass
     
     def compile_expr(self,expr):
         id_=self.get_register_id()
         
         if isinstance(expr,cpp.Absyn.Eint):
-            self.emit("%%t%d = add i%d 0 , %d" % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
-            
-        
-       
-       
-       
-       
-       #Arithmetic instructions
-       elif expr.__class__ in (cpp.Absyn.Emul,cpp.Absyn.Ediv,cpp.Absyn.Emod,cpp.Absyn.Eadd,cpp.Absyn.Esub):
-           r1=self.compile_expr(expr.expr_1)
-           r2=self.compile_expr(expr.expr_2)
+            self.emit('%%t%d = add i%d 0 , %d' % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
+        #Arithmetic instructions
+        elif expr.__class__ in (cpp.Absyn.Emul,cpp.Absyn.Ediv,cpp.Absyn.Emod,cpp.Absyn.Eadd,cpp.Absyn.Esub):
+            r1=self.compile_expr(expr.expr_1)
+            r2=self.compile_expr(expr.expr_2)
            
-           aritm= {
-               cpp.Absyn.Typeint: {cpp.Absyn.Emul:'mul',cpp.Absyn.Ediv'sdiv',cpp.Absyn.Emod:'srem',cpp.Absyn.Eadd:'add',cpp.Absyn.Esub:'sub'},
-               cpp.Absyn.Typedouble: {cpp.Absyn.Emul:'fmul',cpp.Absyn.Ediv'fdiv',cpp.Absyn.Emod:'frem',cpp.Absyn.Eadd:'fadd',cpp.Absyn.Esub:'fsub'},
-               }
+            op=self.aritm[self.inf.getinfer(expr).__class__][expr.__class__]
+            self.emit('%%t%d = %s i%d %%t%d , %%t%d' % (id_,op,self.module.get_size( self.inf.getinfer(expr)),r1,r2 ))
            
-           print aritm[self.inf.getinfer(expr)][expr.__class__]
-           
-           pass
+            pass
        
        
        

@@ -19,6 +19,6 @@
 # 
 # author Salvo "LtWorf" Tomaselli <tiposchi@tiscali.it>
 
-improvementLevel=10
+improvementLevel=1
 warningLevel=0
 target="llvm"
