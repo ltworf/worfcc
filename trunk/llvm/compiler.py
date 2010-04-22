@@ -232,12 +232,6 @@ class function():
         print instr
     
     def compile_block(self,statements,new_context=True):
-        '''
-        Nop.                Statement           ::= ";"; --Allow empty instruction
-        Block.              Statement           ::= "{" [Statement] "}";
-        While.              Statement           ::= "while" "(" Expr ")" Statement;
-        DoWhile.            Statement           ::= "do" Statement "while" "(" Expr ")" ";"; --My own addition to the language
-        '''
         if new_context:
             self.var_contx.push()
         
@@ -296,7 +290,50 @@ class function():
                 self.emit('br label %%%s' % (lbl_endif))
                 
                 self.emit('%s:' % lbl_endif) # ENDIF
+            elif isinstance(i,cpp.Absyn.While) or isinstance(i,cpp.Absyn.DoWhile):    #While/Do-while loop
+                #Labels
+                l_id=self.module.get_lbl()
+                lbl_while="while_%d" %l_id
+                lbl_expr="expr_%d" %l_id
+                lbl_endwhile="endwhile_%d" %l_id
                 
+                #Code generation if the condition is constant
+                if self.inf.getinfer(i.expr_)==True:
+                    self.emit ( "%s:" % lbl_while)
+                    self.compile_block((i.statement_,),False)  #While body
+                    self.emit('br label %%%s' % (lbl_while))
+                    if options.warningLevel>2:
+                        print "WARNING: infinite loop detected. This warning will be shown until the problem will be fixed"
+                    continue
+                elif self.inf.getinfer(i.expr_)==False and isinstance(i,cpp.Absyn.While):
+                    if options.warningLevel>2:
+                        print  "WARNING: never executed while loop"
+                    continue
+                elif self.inf.getinfer(i.expr_)==False and isinstance(i,cpp.Absyn.DoWhile):
+                    self.compile_block((i.statement_,),False)
+                    if options.warningLevel>2:
+                        print "WARNING: do-while will be executed only once"
+                    continue
+                
+                #A do-while always executes the 1st time
+                if isinstance(i,cpp.Absyn.While):
+                    self.emit('br label %%%s' % (lbl_expr))
+                else:
+                    self.emit('br label %%%s' % (lbl_while))
+                    
+                self.emit ( "%s:" % lbl_while)
+                self.compile_block((i.statement_,),False)  #While body
+                
+                self.emit('br label %%%s' % (lbl_expr))
+                
+                
+                self.emit ( "%s:" % lbl_expr)
+                
+                r1=self.compile_expr(i.expr_) #Calculate the expression
+                
+                self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_while,lbl_endwhile) )
+                
+                self.emit ( "%s:" % lbl_endwhile)
             elif isinstance(i,cpp.Absyn.LocalVars):
                 size=self.module.get_size(i.type_)
                 for j in i.listvitem_:
@@ -306,7 +343,12 @@ class function():
                     
                     if isinstance(j,cpp.Absyn.VarNA):
                         #Inits the var to 0
-                        self.emit('store %s 0, %s* %s' % (size,size,var))
+                        if isinstance(i.type_,cpp.Absyn.Typedouble):
+                            zero='0.0'
+                        else:
+                            zero='0'
+                            
+                        self.emit('store %s %s, %s* %s' % (size,zero,size,var))
                     elif isinstance(j,cpp.Absyn.VarVA):
                         r1=self.compile_expr(j.expr_)
                         self.emit('store %s %s, %s* %s' % (size,r1,size,var))
