@@ -1,9 +1,9 @@
 int main () {
-    printString("suca");
-    printInt(add(10,5));
+    int a;
+    
+    1;
+    true;
+    a=readInt();
+    printInt(a);
     return 0;
-}
-
-int add(int a, int b) {
-    return a+b;
 }

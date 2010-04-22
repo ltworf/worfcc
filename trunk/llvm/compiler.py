@@ -134,6 +134,8 @@ class module():
             return 'i1'
         elif isinstance(type_,cpp.Absyn.Typestrng):
             return 'i8*'
+        elif isinstance(type_,cpp.Absyn.Typedouble):
+            return 'double'
         else: #/TODO REMOVE THIS!!!
             return '128'
     
@@ -267,6 +269,13 @@ class function():
         if isinstance(expr,cpp.Absyn.Eint):
             #self.emit('%s = add %s 0 , %d' % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
             return str(expr.integer_)
+        elif isinstance(expr,cpp.Absyn.Edbl):
+            return str(expr.double_)
+        elif isinstance(expr,cpp.Absyn.Ebool):
+            if isinstance(expr.bool_,cpp.Absyn.TrueLit):
+                return 'true'
+            elif isinstance(expr.bool_,cpp.Absyn.FalseLit):
+                return 'false'
         elif isinstance(expr,cpp.Absyn.Estrng):
             handle=self.module.add_constant(expr.string_)
             self.emit('%s = bitcast [%d x i8]* %s to i8*' % (id_,len(expr.string_)+1,handle))
@@ -330,8 +339,6 @@ class function():
                 self.emit ('%s = call %s @%s (%s)' % (id_,expr_size,expr.cident_,params))
         
         '''
-        Edbl.               Expr16              ::= Double;
-        Ebool.              Expr16              ::= Bool;
         ENeg.               Expr12              ::= "-" Expr13 ;
         ENot.               Expr12              ::= "!" Expr13 ;
         Elt.                Expr9               ::= Expr9 "<" Expr10;
