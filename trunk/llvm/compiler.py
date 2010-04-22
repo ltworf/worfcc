@@ -299,9 +299,11 @@ class function():
                 
                 #Code generation if the condition is constant
                 if self.inf.getinfer(i.expr_)==True:
+                    self.emit('br label %%%s' % (lbl_while))
                     self.emit ( "%s:" % lbl_while)
                     self.compile_block((i.statement_,),False)  #While body
                     self.emit('br label %%%s' % (lbl_while))
+                    self.emit('unreachable')
                     if options.warningLevel>2:
                         print "WARNING: infinite loop detected. This warning will be shown until the problem will be fixed"
                     continue
@@ -338,7 +340,6 @@ class function():
                 size=self.module.get_size(i.type_)
                 for j in i.listvitem_:
                     var=self.get_var_name()
-                    self.var_contx.put(j.cident_,var)
                     self.emit('%s = alloca %s' % (var,size))
                     
                     if isinstance(j,cpp.Absyn.VarNA):
@@ -352,7 +353,7 @@ class function():
                     elif isinstance(j,cpp.Absyn.VarVA):
                         r1=self.compile_expr(j.expr_)
                         self.emit('store %s %s, %s* %s' % (size,r1,size,var))
-        
+                    self.var_contx.put(j.cident_,var)
         if new_context:
             self.var_contx.pop()
         
