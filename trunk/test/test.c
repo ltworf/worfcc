@@ -1,9 +1,10 @@
 int main () {
-    int a;
-    
-    1;
-    true;
-    a=readInt();
-    printInt(a);
-    return 0;
+        if (false) printInt(1);
+        else printString("false");
+            
+        if (readDouble()>3.0) printString("maggiore di 3");
+        else printString("minore di 3");
+        
+        return 0;
+        
 }

@@ -146,6 +146,10 @@ class function():
             cpp.Absyn.Typedouble: {cpp.Absyn.Emul:'fmul',cpp.Absyn.Ediv:'fdiv',cpp.Absyn.Emod:'frem',cpp.Absyn.Eadd:'fadd',cpp.Absyn.Esub:'fsub'},
         }
         
+        self.comparisons= {# Dictionary to compile operations with comparisons
+            cpp.Absyn.Typeint: {cpp.Absyn.Elt :'slt',cpp.Absyn.Egt :'sgt',cpp.Absyn.Eelt:'sle',cpp.Absyn.Eegt:'sge',cpp.Absyn.Eeql:'eq',cpp.Absyn.Edif:'ne'},
+            cpp.Absyn.Typedouble: {cpp.Absyn.Elt :'olt',cpp.Absyn.Egt :'ogt',cpp.Absyn.Eelt:'ole',cpp.Absyn.Eegt:'oge',cpp.Absyn.Eeql:'oeq',cpp.Absyn.Edif:'one'},
+        }
         
         #Function to compile
         self.fnct=f
@@ -202,6 +206,11 @@ class function():
         
         self.compile_block(f.liststatement_)
         
+        #Adds an 'unreachable' statement if needed
+        if self.code[len(self.code)-1].endswith(':'):
+            self.emit('unreachable')
+        
+        
         self.emit("}")
         
         self.var_contx.pop()
@@ -228,12 +237,13 @@ class function():
         Block.              Statement           ::= "{" [Statement] "}";
         While.              Statement           ::= "while" "(" Expr ")" Statement;
         DoWhile.            Statement           ::= "do" Statement "while" "(" Expr ")" ";"; --My own addition to the language
-        IfElse.             Statement           ::= "if" "(" Expr ")" Statement "else" Statement;
-        If.                 Statement           ::= "if" "(" Expr ")" Statement;'''
+        '''
         if new_context:
             self.var_contx.push()
         
-        for i in statements:
+        for instr_id in range(len(statements)):
+            i=statements[instr_id]
+            
             if isinstance(i,cpp.Absyn.Expression):
                 self.compile_expr(i.expr_)
             elif isinstance(i,cpp.Absyn.VoidReturn):
@@ -243,6 +253,50 @@ class function():
                 self.emit('ret %s %s' % (self.module.get_size( self.inf.getinfer(i.expr_)),r1))
             elif isinstance(i,cpp.Absyn.Block):
                 self.compile_block(i.liststatement_)
+            elif isinstance(i,cpp.Absyn.If) or isinstance(i,cpp.Absyn.IfElse):
+                
+                #Code generation if the condition is constant
+                if isinstance(i,cpp.Absyn.IfElse):
+                    if self.inf.getinfer(i.expr_)==True:
+                        self.compile_block((i.statement_1,),False)  #True branch
+                        continue
+                    elif self.inf.getinfer(i.expr_)==False:
+                        self.compile_block((i.statement_2,),False)  #False branch
+                        continue
+                else: #Simple if
+                    if self.inf.getinfer(i.expr_)==True:
+                        self.compile_block((i.statement_,),False)  #True branch
+                        continue
+                    elif self.inf.getinfer(i.expr_)==False:
+                        continue
+                                
+                #Normal code generation
+                r1=self.compile_expr(i.expr_) #Calculate the expression
+                
+                
+                #Labels
+                l_id=self.module.get_lbl()
+                lbl_if='if_%d' % l_id
+                lbl_else='else_%d' % l_id
+                lbl_endif='endif_%d' % l_id
+                
+                #Emitting the code
+                self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_if,lbl_else) )
+                
+                self.emit('%s:' % lbl_if) # IF
+                if isinstance(i,cpp.Absyn.IfElse):
+                    self.compile_block((i.statement_1,),False)
+                else:
+                    self.compile_block((i.statement_,),False)
+                self.emit('br label %%%s' % (lbl_endif))
+                
+                self.emit('%s:' % lbl_else) # ELSE
+                if isinstance(i,cpp.Absyn.IfElse):
+                    self.compile_block((i.statement_2,),False)
+                self.emit('br label %%%s' % (lbl_endif))
+                
+                self.emit('%s:' % lbl_endif) # ENDIF
+                
             elif isinstance(i,cpp.Absyn.LocalVars):
                 size=self.module.get_size(i.type_)
                 for j in i.listvitem_:
@@ -280,12 +334,27 @@ class function():
             handle=self.module.add_constant(expr.string_)
             self.emit('%s = bitcast [%d x i8]* %s to i8*' % (id_,len(expr.string_)+1,handle))
         #Arithmetic instructions
-        elif expr.__class__ in (cpp.Absyn.Emul,cpp.Absyn.Ediv,cpp.Absyn.Emod,cpp.Absyn.Eadd,cpp.Absyn.Esub):
+        elif expr.__class__ in self.aritm[cpp.Absyn.Typeint]:
             r1=self.compile_expr(expr.expr_1)
             r2=self.compile_expr(expr.expr_2)
            
             op=self.aritm[self.inf.getinfer(expr).__class__][expr.__class__]
             self.emit('%s = %s %s %s , %s' % (id_,op,expr_size,r1,r2 ))
+        #Comparisons
+        elif expr.__class__ in self.comparisons[cpp.Absyn.Typeint]:
+            r1=self.compile_expr(expr.expr_1)
+            r2=self.compile_expr(expr.expr_2)
+            
+            op=self.comparisons[self.inf.getinfer(expr.expr_1).__class__][expr.__class__]
+            
+            if isinstance(self.inf.getinfer(expr.expr_1),cpp.Absyn.Typeint):
+                int_or_float='i'
+            else:
+                int_or_float='f'
+            
+            type_=self.module.get_size(self.inf.getinfer(expr.expr_1))
+            
+            self.emit('%s = %ccmp %s %s %s , %s'%(id_,int_or_float,op,type_,r1,r2))
         #Variable
         elif isinstance(expr,cpp.Absyn.Eitm):
             var=self.var_contx.get(expr.cident_)
@@ -339,14 +408,11 @@ class function():
                 self.emit ('%s = call %s @%s (%s)' % (id_,expr_size,expr.cident_,params))
         
         '''
+        
+        
+        
         ENeg.               Expr12              ::= "-" Expr13 ;
         ENot.               Expr12              ::= "!" Expr13 ;
-        Elt.                Expr9               ::= Expr9 "<" Expr10;
-        Egt.                Expr9               ::= Expr9 ">" Expr10;
-        Eelt.               Expr9               ::= Expr9 "<=" Expr10;
-        Eegt.               Expr9               ::= Expr9 ">=" Expr10;
-        Eeql.               Expr8               ::= Expr8 "==" Expr9;
-        Edif.               Expr8               ::= Expr8 "!=" Expr9;
         Eand.               Expr4               ::= Expr4 "&&" Expr5;
         Eor.                Expr3               ::= Expr3 "||" Expr4;
         '''
