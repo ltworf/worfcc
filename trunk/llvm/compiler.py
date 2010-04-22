@@ -136,6 +136,8 @@ class module():
             return 'i8*'
         elif isinstance(type_,cpp.Absyn.Typedouble):
             return 'double'
+        elif isinstance(type_,cpp.Absyn.Typevoid):
+            return 'void'
         else: #/TODO REMOVE THIS!!!
             return '128'
     
@@ -433,8 +435,6 @@ class function():
             self.emit('store %s %s, %s* %s' % (expr_size,id_,expr_size,var))
         #Function call
         elif isinstance(expr,cpp.Absyn.Efun):
-            #Efun.               Expr15              ::= CIdent "(" [Expr] ")";
-            
             parlist=[]
             for i in expr.listexpr_:
                 r=self.compile_expr(i)
@@ -449,11 +449,34 @@ class function():
             else:
                 #Normal call with result
                 self.emit ('%s = call %s @%s (%s)' % (id_,expr_size,expr.cident_,params))
+        #Short-circuit AND
+        elif isinstance(expr,cpp.Absyn.Eand):
+            #Labels
+            l_id=self.module.get_lbl()
+            lbl_if='and_true_%d' % l_id
+            lbl_else='and_false_%d' % l_id
+            lbl_endif='end_and_%d' % l_id
+            
+            #Generate 1st part
+            r1=self.compile_expr(expr.expr_1) #Calculate the expression
+                
+            #Branch
+            self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_if,lbl_else) )
+                
+            self.emit('%s:' % lbl_if) #expr_1 TRUE
+            
+            r2=self.compile_expr(expr.expr_2)
+            
+            self.emit('br label %%%s' % (lbl_endif))
+                
+            self.emit('%s:' % lbl_else) #expr_1 FALSE
+            self.emit('%s = fcmp false float 0.0 , 0.0'% (r2,))
+            self.emit('br label %%%s' % (lbl_endif))
+            
+            self.emit('%s:' % lbl_endif) # ENDIF
+            
         
         '''
-        
-        
-        
         ENeg.               Expr12              ::= "-" Expr13 ;
         ENot.               Expr12              ::= "!" Expr13 ;
         Eand.               Expr4               ::= Expr4 "&&" Expr5;

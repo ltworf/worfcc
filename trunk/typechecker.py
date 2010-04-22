@@ -88,10 +88,10 @@ def check_fnct(f,contx,t_inf):
     ret=chk_block(f.liststatement_,contx,False,f.type_,t_inf) #Checking the statements in a block that has the same context
     
     
-    
     if not isinstance(f.type_,cpp.Absyn.Typevoid) and not ret: #Raise exception for missing return statement
         err.error("Missing return statement in non void function "+f.cident_,contx)
-    
+    elif isinstance(f.type_,cpp.Absyn.Typevoid): #Adds a return in the end of every
+        f.liststatement_.addLast(cpp.Absyn.VoidReturn())
     
     contx.pop()     #Removing the context
 
