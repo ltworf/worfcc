@@ -511,24 +511,9 @@ class function():
             self.emit('%s = phi %s [ 1 , %%%s ] , [ %s , %%%s ]' % (id_,expr_size,lbl_begin,r2,lbl_third))
         #NOT
         elif isinstance(expr,cpp.Absyn.ENot):
-            l_id=self.module.get_lbl()
-            lbl_begin='or_begin_%d' % l_id
-            lbl_second='or_second_%d' % l_id
-            lbl_end='or_end_%d' % l_id
-            
+            #This will work because the register is 1bit
             r1=self.compile_expr(expr.expr_)
-            
-            #I need the and to be in a block for the phi instruction
-            self.emit('br label %%%s' % (lbl_begin))
-            self.emit('%s:' % lbl_begin)
-            self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_end,lbl_second) )
-
-            self.emit('%s:' % lbl_second)
-            self.emit('br label %%%s' % (lbl_end))
-            self.emit('%s:' % lbl_end)
-            
-            #Assign the value depending on from which block is jumping here
-            self.emit('%s = phi %s [ 0 , %%%s ] , [ 1 , %%%s ]' % (id_,expr_size,lbl_begin,lbl_second))
+            self.emit('%s = add i1 %s , 1' % (id_,r1))
 
         return id_
     

@@ -1,26 +1,30 @@
 /*lolo*/
 int main() {
-    int a=5;
-    double b=9.1;
-    int c;
-    double d;
-    //printBool(!fazzo());
-    printInt(-a);
-    printDouble(-b);
-    printInt(-c);
-    printDouble(-d);
+    boolean a= 1<3 || 4>5;
+    
+    
+    printBool(a);
+    
+    if (!a) {
+        printString("sucuni");
+    }
+    boolean b=!a;
+    if (!b) {
+        printString("sucuni2");
+    } else {printString("lolo");}
     
     return 0;
     
-}
-
-boolean fazzo() {
-    printString("lala");
-    return false;
 }
 
 void printBool(boolean a) {
     if (a) printString("true");
     else printString("false");
     //return;
+}
+
+boolean not(boolean a) {
+    if (a)
+        return false;
+    return true;
 }
