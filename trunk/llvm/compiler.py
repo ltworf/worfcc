@@ -454,41 +454,71 @@ class function():
             l_id=self.module.get_lbl()
             lbl_begin='and_begin_%d' % l_id
             lbl_second='and_second_%d' % l_id
+            lbl_third='and_third_%d' % l_id
             lbl_end='and_end_%d' % l_id
+            
+            r1=self.compile_expr(expr.expr_1)
             
             #I need the and to be in a block for the phi instruction
             self.emit('br label %%%s' % (lbl_begin))
             self.emit('%s:' % lbl_begin)
-            r1=self.compile_expr(expr.expr_1)
-                
             self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_second,lbl_end) )
+
             self.emit('%s:' % lbl_second)
             r2=self.compile_expr(expr.expr_2)
+            self.emit('br label %%%s' % (lbl_third))
+            self.emit('%s:' % lbl_third)
+            
             self.emit('br label %%%s' % (lbl_end))
             self.emit('%s:' % lbl_end)
             
             #Assign the value depending on from which block is jumping here
-            self.emit('%s = phi %s [ 0 , %%%s ] , [ %s , %%%s ]' % (id_,expr_size,lbl_begin,r2,lbl_second))
+            self.emit('%s = phi %s [ 0 , %%%s ] , [ %s , %%%s ]' % (id_,expr_size,lbl_begin,r2,lbl_third))
+        #Short-circuit OR
         elif isinstance(expr,cpp.Absyn.Eor):
+            l_id=self.module.get_lbl()
+            lbl_begin='or_begin_%d' % l_id
+            lbl_second='or_second_%d' % l_id
+            lbl_third='or_third_%d' % l_id
+            lbl_end='or_end_%d' % l_id
+            
+            r1=self.compile_expr(expr.expr_1)
+            
+            #I need the and to be in a block for the phi instruction
+            self.emit('br label %%%s' % (lbl_begin))
+            self.emit('%s:' % lbl_begin)
+            self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_end,lbl_second) )
+
+            self.emit('%s:' % lbl_second)
+            r2=self.compile_expr(expr.expr_2)
+            self.emit('br label %%%s' % (lbl_third))
+            self.emit('%s:' % lbl_third)
+            
+            self.emit('br label %%%s' % (lbl_end))
+            self.emit('%s:' % lbl_end)
+            
+            #Assign the value depending on from which block is jumping here
+            self.emit('%s = phi %s [ 1 , %%%s ] , [ %s , %%%s ]' % (id_,expr_size,lbl_begin,r2,lbl_third))
+        #NOT
+        elif isinstance(expr,cpp.Absyn.ENot):
             l_id=self.module.get_lbl()
             lbl_begin='or_begin_%d' % l_id
             lbl_second='or_second_%d' % l_id
             lbl_end='or_end_%d' % l_id
             
+            r1=self.compile_expr(expr.expr_)
+            
             #I need the and to be in a block for the phi instruction
             self.emit('br label %%%s' % (lbl_begin))
             self.emit('%s:' % lbl_begin)
-            r1=self.compile_expr(expr.expr_1)
-                
             self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_end,lbl_second) )
+
             self.emit('%s:' % lbl_second)
-            r2=self.compile_expr(expr.expr_2)
             self.emit('br label %%%s' % (lbl_end))
             self.emit('%s:' % lbl_end)
             
             #Assign the value depending on from which block is jumping here
-            self.emit('%s = phi %s [ 1 , %%%s ] , [ %s , %%%s ]' % (id_,expr_size,lbl_begin,r2,lbl_second))    
-        
+            self.emit('%s = phi %s [ 0 , %%%s ] , [ 1 , %%%s ]' % (id_,expr_size,lbl_begin,lbl_second))
         '''
         ENeg.               Expr12              ::= "-" Expr13 ;
         ENot.               Expr12              ::= "!" Expr13 ;

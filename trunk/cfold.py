@@ -85,6 +85,10 @@ def solve_expression(e):
     if isinstance(e,cpp.Absyn.ENot) and e.expr_.__class__ in rev_rel:
         return rev_rel[e.expr_.__class__](e.expr_.expr_1,e.expr_.expr_2)
     
+    #Removing double NOT
+    if isinstance(e,cpp.Absyn.ENot) and isinstance(e.expr_,cpp.Absyn.ENot):
+        return e.expr_.expr_
+    
     #Boolean
     elif isinstance(e,cpp.Absyn.Eeql) and isinstance(e.expr_1,cpp.Absyn.Ebool) and isinstance(e.expr_2,cpp.Absyn.Ebool):
         if e.expr_1.bool_.__class__ == e.expr_2.bool_.__class__:
