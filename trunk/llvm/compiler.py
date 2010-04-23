@@ -469,13 +469,29 @@ class function():
             
             #Assign the value depending on from which block is jumping here
             self.emit('%s = phi %s [ 0 , %%%s ] , [ %s , %%%s ]' % (id_,expr_size,lbl_begin,r2,lbl_second))
+        elif isinstance(expr,cpp.Absyn.Eor):
+            l_id=self.module.get_lbl()
+            lbl_begin='or_begin_%d' % l_id
+            lbl_second='or_second_%d' % l_id
+            lbl_end='or_end_%d' % l_id
             
+            #I need the and to be in a block for the phi instruction
+            self.emit('br label %%%s' % (lbl_begin))
+            self.emit('%s:' % lbl_begin)
+            r1=self.compile_expr(expr.expr_1)
+                
+            self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_end,lbl_second) )
+            self.emit('%s:' % lbl_second)
+            r2=self.compile_expr(expr.expr_2)
+            self.emit('br label %%%s' % (lbl_end))
+            self.emit('%s:' % lbl_end)
+            
+            #Assign the value depending on from which block is jumping here
+            self.emit('%s = phi %s [ 1 , %%%s ] , [ %s , %%%s ]' % (id_,expr_size,lbl_begin,r2,lbl_second))    
         
         '''
         ENeg.               Expr12              ::= "-" Expr13 ;
         ENot.               Expr12              ::= "!" Expr13 ;
-        Eand.               Expr4               ::= Expr4 "&&" Expr5;
-        Eor.                Expr3               ::= Expr3 "||" Expr4;
         '''
 
         return id_

@@ -2,7 +2,7 @@
 int main() {
     boolean a=false;
     
-    printBool(1>0 && fazzo());
+    printBool(1<0 || fazzo());
     
     return 0;
     
