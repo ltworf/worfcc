@@ -58,7 +58,6 @@ import sys
 import cpp
 import context
 import inferred
-import improve
 import os.path
 import options
 import lcontext
@@ -149,6 +148,7 @@ class function():
         }
         
         self.comparisons= {# Dictionary to compile operations with comparisons
+            cpp.Absyn.Typebool: {cpp.Absyn.Eeql:'eq',cpp.Absyn.Edif:'ne'},
             cpp.Absyn.Typeint: {cpp.Absyn.Elt :'slt',cpp.Absyn.Egt :'sgt',cpp.Absyn.Eelt:'sle',cpp.Absyn.Eegt:'sge',cpp.Absyn.Eeql:'eq',cpp.Absyn.Edif:'ne'},
             cpp.Absyn.Typedouble: {cpp.Absyn.Elt :'olt',cpp.Absyn.Egt :'ogt',cpp.Absyn.Eelt:'ole',cpp.Absyn.Eegt:'oge',cpp.Absyn.Eeql:'oeq',cpp.Absyn.Edif:'one'},
         }
