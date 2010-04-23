@@ -402,10 +402,10 @@ class function():
             
             op=self.comparisons[self.inf.getinfer(expr.expr_1).__class__][expr.__class__]
             
-            if isinstance(self.inf.getinfer(expr.expr_1),cpp.Absyn.Typeint):
-                int_or_float='i'
-            else:
+            if isinstance(self.inf.getinfer(expr.expr_1),cpp.Absyn.Typedouble):
                 int_or_float='f'
+            else:
+                int_or_float='i'
             
             type_=self.module.get_size(self.inf.getinfer(expr.expr_1))
             
