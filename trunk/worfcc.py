@@ -109,6 +109,8 @@ if __name__ == "__main__":
             f[1].close()
             #os.wait()  Should wait, but jython seems to have problems with that
         elif options.target=='llvm':
-            #/TODO link the output file
-            pass
+            f=os.popen2(('llvm-as',r))
+            #f=os.popen2(('llvm-as','-std-compile-opts','-o',r[:-2]+'bc',r))
+            f[0].close()
+            f[1].close()
         
