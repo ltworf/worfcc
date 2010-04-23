@@ -451,29 +451,24 @@ class function():
                 self.emit ('%s = call %s @%s (%s)' % (id_,expr_size,expr.cident_,params))
         #Short-circuit AND
         elif isinstance(expr,cpp.Absyn.Eand):
-            #Labels
             l_id=self.module.get_lbl()
-            lbl_if='and_true_%d' % l_id
-            lbl_else='and_false_%d' % l_id
-            lbl_endif='end_and_%d' % l_id
+            lbl_begin='and_begin_%d' % l_id
+            lbl_second='and_second_%d' % l_id
+            lbl_end='and_end_%d' % l_id
             
-            #Generate 1st part
-            r1=self.compile_expr(expr.expr_1) #Calculate the expression
+            #I need the and to be in a block for the phi instruction
+            self.emit('br label %%%s' % (lbl_begin))
+            self.emit('%s:' % lbl_begin)
+            r1=self.compile_expr(expr.expr_1)
                 
-            #Branch
-            self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_if,lbl_else) )
-                
-            self.emit('%s:' % lbl_if) #expr_1 TRUE
-            
+            self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_second,lbl_end) )
+            self.emit('%s:' % lbl_second)
             r2=self.compile_expr(expr.expr_2)
+            self.emit('br label %%%s' % (lbl_end))
+            self.emit('%s:' % lbl_end)
             
-            self.emit('br label %%%s' % (lbl_endif))
-                
-            self.emit('%s:' % lbl_else) #expr_1 FALSE
-            self.emit('%s = fcmp false float 0.0 , 0.0'% (r2,))
-            self.emit('br label %%%s' % (lbl_endif))
-            
-            self.emit('%s:' % lbl_endif) # ENDIF
+            #Assign the value depending on from which block is jumping here
+            self.emit('%s = phi %s [ 0 , %%%s ] , [ %s , %%%s ]' % (id_,expr_size,lbl_begin,r2,lbl_second))
             
         
         '''
