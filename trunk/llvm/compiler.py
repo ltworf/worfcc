@@ -227,7 +227,12 @@ class function():
         self.var_name+=1
         return '%%v_%d' % self.var_name
         
-    
+    def __get_zero__(self,type_,num='0'):
+        if isinstance(type_,cpp.Absyn.Typedouble):
+            return '%s.0' % num
+        return '%s' % num
+                            
+                            
     def emit(self,instr):
         self.code.append(instr)
         #/TODO just temporary
@@ -346,10 +351,7 @@ class function():
                     
                     if isinstance(j,cpp.Absyn.VarNA):
                         #Inits the var to 0
-                        if isinstance(i.type_,cpp.Absyn.Typedouble):
-                            zero='0.0'
-                        else:
-                            zero='0'
+                        zero=self.__get_zero__(i.type_)
                             
                         self.emit('store %s %s, %s* %s' % (size,zero,size,var))
                     elif isinstance(j,cpp.Absyn.VarVA):
@@ -385,6 +387,14 @@ class function():
            
             op=self.aritm[self.inf.getinfer(expr).__class__][expr.__class__]
             self.emit('%s = %s %s %s , %s' % (id_,op,expr_size,r1,r2 ))
+        #Negative
+        elif isinstance(expr,cpp.Absyn.ENeg):
+            r1=self.compile_expr(expr.expr_)
+            
+            op=self.aritm[self.inf.getinfer(expr).__class__][cpp.Absyn.Emul]
+            zero=self.__get_zero__(self.inf.getinfer(expr),1)
+            self.emit('%s = %s %s %s , -%s' % (id_,op,expr_size,r1,zero ))
+            
         #Comparisons
         elif expr.__class__ in self.comparisons[cpp.Absyn.Typeint]:
             r1=self.compile_expr(expr.expr_1)
@@ -519,10 +529,6 @@ class function():
             
             #Assign the value depending on from which block is jumping here
             self.emit('%s = phi %s [ 0 , %%%s ] , [ 1 , %%%s ]' % (id_,expr_size,lbl_begin,lbl_second))
-        '''
-        ENeg.               Expr12              ::= "-" Expr13 ;
-        ENot.               Expr12              ::= "!" Expr13 ;
-        '''
 
         return id_
     

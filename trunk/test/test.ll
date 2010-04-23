@@ -8,44 +8,26 @@ declare double @readDouble()
 @const_1 = internal constant [5 x i8] c"true\00"
 define i32 @main() {
 entry:
-%v_0 = alloca i1
-store i1 false, i1* %v_0
-%t4 = call i1 @fazzo ()
-br label %and_begin_1
-and_begin_1:
-br i1 %t4 , label %and_second_1 , label %and_end_1
-and_second_1:
-%t6 = call i1 @fazzo ()
-br label %or_begin_2
-or_begin_2:
-br i1 %t6 , label %or_end_2 , label %or_second_2
-or_second_2:
-br label %or_end_2
-or_end_2:
-%t5 = phi i1 [ 0 , %or_begin_2 ] , [ 1 , %or_second_2 ]
-br label %and_third_1
-and_third_1:
-br label %and_end_1
-and_end_1:
-%t3 = phi i1 [ 0 , %and_begin_1 ] , [ %t5 , %and_third_1 ]
-br label %or_begin_0
-or_begin_0:
-br i1 %t3 , label %or_end_0 , label %or_second_0
-or_second_0:
-%t8 = call i1 @fazzo ()
-br label %or_begin_3
-or_begin_3:
-br i1 %t8 , label %or_end_3 , label %or_second_3
-or_second_3:
-br label %or_end_3
-or_end_3:
-%t7 = phi i1 [ 0 , %or_begin_3 ] , [ 1 , %or_second_3 ]
-br label %or_third_0
-or_third_0:
-br label %or_end_0
-or_end_0:
-%t2 = phi i1 [ 1 , %or_begin_0 ] , [ %t7 , %or_third_0 ]
-call void @printBool (i1 %t2)
+%v_0 = alloca i32
+store i32 5, i32* %v_0
+%v_1 = alloca double
+store double 9.1, double* %v_1
+%v_2 = alloca i32
+store i32 0, i32* %v_2
+%v_3 = alloca double
+store double 0.0, double* %v_3
+%t4 = load i32* %v_0
+%t3 = mul i32 %t4 , -1
+call void @printInt (i32 %t3)
+%t7 = load double* %v_1
+%t6 = fmul double %t7 , -1.0
+call void @printDouble (double %t6)
+%t10 = load i32* %v_2
+%t9 = mul i32 %t10 , -1
+call void @printInt (i32 %t9)
+%t13 = load double* %v_3
+%t12 = fmul double %t13 , -1.0
+call void @printDouble (double %t12)
 ret i32 0
 }
 define i1 @fazzo() {
@@ -59,15 +41,15 @@ entry:
 %v_0 = alloca i1
 store i1 %par_0, i1* %v_0
 %t0 = load i1* %v_0
-br i1 %t0 , label %if_4 , label %else_4
-if_4:
+br i1 %t0 , label %if_0 , label %else_0
+if_0:
 %t2 = bitcast [5 x i8]* @const_1 to i8*
 call void @printString (i8* %t2)
-br label %endif_4
-else_4:
+br label %endif_0
+else_0:
 %t4 = bitcast [6 x i8]* @const_2 to i8*
 call void @printString (i8* %t4)
-br label %endif_4
-endif_4:
+br label %endif_0
+endif_0:
 ret void
 }

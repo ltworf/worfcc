@@ -1,9 +1,14 @@
 /*lolo*/
 int main() {
-    boolean a=false;
-    
+    int a=5;
+    double b=9.1;
+    int c;
+    double d;
     //printBool(!fazzo());
-    printBool(fazzo() && !fazzo() || !fazzo());
+    printInt(-a);
+    printDouble(-b);
+    printInt(-c);
+    printDouble(-d);
     
     return 0;
     
