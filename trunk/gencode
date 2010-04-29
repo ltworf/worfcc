@@ -1,6 +1,10 @@
 #!/bin/bash
 
-bnfc -m -java1.5 *cf
-patch Makefile patchmake
-make clean
-make
+if bnfc -m -java1.5 *cf
+then
+	patch Makefile patchmake
+	make clean
+	make
+else
+	echo FAILED
+fi

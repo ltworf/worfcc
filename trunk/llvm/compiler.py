@@ -513,7 +513,7 @@ class function():
         elif isinstance(expr,cpp.Absyn.ENot):
             #This will work because the register is 1bit
             r1=self.compile_expr(expr.expr_)
-            self.emit('%s = add i1 %s , 1' % (id_,r1))
+            self.emit('%s = xor i1 %s , true' % (id_,r1))
 
         return id_
     
