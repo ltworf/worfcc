@@ -5,3 +5,7 @@ int main() {
   return 0 ;
 
 }
+
+boolean not(boolean a) {
+    return !a;
+}

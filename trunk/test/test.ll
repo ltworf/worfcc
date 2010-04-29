@@ -15,3 +15,11 @@ br label %endif_0
 endif_0:
 ret i32 0
 }
+define i1 @not(i1 %par_0) {
+entry:
+%v_0 = alloca i1
+store i1 %par_0, i1* %v_0
+%t1 = load i1* %v_0
+%t0 = add i1 %t1 , 1
+ret i1 %t0
+}
