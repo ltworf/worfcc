@@ -12,3 +12,9 @@ int main() {
   printInt(mod002.g());
   printInt(mod003.g());
 }
+int funziona() {
+return 3;
+}
+int funzione() {
+return 0;
+}

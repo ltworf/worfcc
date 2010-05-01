@@ -27,6 +27,7 @@ import java_cup
 import err
 import inferred
 import options
+import os.path
 
 builtins=("printInt","printDouble","printString","readInt","readDouble") #"printBool"
 
@@ -49,8 +50,35 @@ def checkfile(filename):
         print >> sys.stderr,"near ", lexer.buff()
         raise Exception("SYNTAX ERROR")
     
-    #Performs constant folding
-    if options.improvementLevel>1:
+    
+    #Adding functions of the modules into the context
+    modules={}
+    real=os.path.realpath(filename)
+    for i in prog.listimport_:
+        #arg=cpp.Absyn.Argument(cpp.Absyn.Typeint(),"x")
+        #larg=cpp.Absyn.ListArgument()
+        #larg.add(arg)
+        #printint=cpp.Absyn.Fnct(cpp.Absyn.Typevoid(),"printInt",larg,None)
+        #contx.put("printInt",printint)
+        
+        modfile= '%s/%s.jl' % (os.path.dirname(real),'.'.join(i.listcident_).replace('.','/'))
+        
+        #Load and parse the module
+        lexer =  cpp.Yylex(java.io.FileReader(modfile));
+        parser=cpp.parser(lexer)
+        res=parser.parse()
+        module_=res.value
+        
+        #Insert its function in the context
+        #Adding all the functions to the context, because their definition doesn't have to be before their 1st call
+        for k in module_.listdeclaration_:
+            f_name='__ext_%s_%s' % ('_'.join(i.listcident_),k.cident_)
+            k.cident_=f_name
+            gcont.put(k.cident_,k)
+    print gcont.contexts[0].table
+    
+    #Performs constant folding and replace calls to modules to normal calls
+    if options.improvementLevel>0:
         import cfold
         cfold.fold(prog)
     
