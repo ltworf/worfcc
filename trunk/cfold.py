@@ -55,13 +55,6 @@ def fold_expression(e):
     binary=(cpp.Absyn.Emul,cpp.Absyn.Ediv,cpp.Absyn.Emod,cpp.Absyn.Eadd,cpp.Absyn.Esub,cpp.Absyn.Elt,cpp.Absyn.Egt,cpp.Absyn.Eelt,cpp.Absyn.Eegt,cpp.Absyn.Eeql,cpp.Absyn.Edif,cpp.Absyn.Eand,cpp.Absyn.Eor,cpp.Absyn.Eass)
     unary=(cpp.Absyn.Eainc,cpp.Absyn.Eadec,cpp.Absyn.Epinc,cpp.Absyn.Epdec,cpp.Absyn.ENeg,cpp.Absyn.ENot)
     
-    #Replace calls to functions in other modules with normal calls
-    if isinstance(e,cpp.Absyn.EModFun):
-        f_name='__ext_%s' % '_'.join(e.listcident_)
-        e=cpp.Absyn.Efun(f_name,e.listexpr_)
-    
-    
-    
     if e.__class__ in binary:
         e.expr_1=fold_expression(e.expr_1)
         e.expr_2=fold_expression(e.expr_2)

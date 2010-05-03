@@ -1,20 +1,15 @@
-import mod002;
-import mod003;
-
-int f() {
-  return 1;
-}
+/* allow comparing booleans. */
 
 int main() {
-  printInt(f());
-  printInt(mod002.f());
-  printInt(mod003.f());
-  printInt(mod002.g());
-  printInt(mod003.g());
-}
-int funziona() {
-return 3;
-}
-int funzione() {
-return 0;
+    int i=0;
+    while (i++<40) {
+        
+        printInt(i);
+        while (i<50) {
+            if (readInt()==0) break;
+        }
+        
+    }
+    return 0;
+    
 }

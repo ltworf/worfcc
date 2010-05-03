@@ -6,7 +6,7 @@ comment "#";    --Stripping out preprocessor stuff. This will make it just not w
 position token CIdent (letter | '_') (letter | digit | '_')*;       --Identifiers start with letter or '_' and then can have numbers too.
 
 
-Program.            Program             ::= [Import] [Declaration];
+Program.            Program             ::= [Declaration];
 TrueLit.            Bool                ::= "true";    --Naming it boolean it won't compile
 FalseLit.           Bool                ::= "false";
 Typestrng.          Type                ::= "string";    --Maybe someone will not like this?
@@ -14,8 +14,8 @@ Typebool.           Type                ::= "boolean";
 Typedouble.         Type                ::= "double";
 Typeint.            Type                ::= "int";
 Typevoid.           Type                ::= "void";
-[].                 [Import]            ::= ;--Allow empty declaration list
-(:).                [Import]            ::= Import [Import];
+
+
 [].                 [Declaration]       ::= ;--Allow empty declaration list
 (:).                [Declaration]       ::= Declaration [Declaration];
 [].                 [Statement]         ::= ; --Allow empty statement list
@@ -29,9 +29,6 @@ VarNA.              VItem               ::= CIdent;
 VarVA.              VItem               ::= CIdent "=" Expr;
 (:[]).              [VItem]             ::= VItem;
 (:).                [VItem]             ::= VItem "," [VItem];
-(:[]).              [CIdent]            ::= CIdent;
-(:).                [CIdent]            ::= CIdent "." [CIdent];
-Imprt.              Import              ::= "import" [CIdent] ";";
 LocalVars.          Statement           ::= Type [VItem] ";";
 Nop.                Statement           ::= ";"; --Allow empty instruction
 Return.             Statement           ::= "return" Expr ";";
@@ -42,6 +39,17 @@ DoWhile.            Statement           ::= "do" Statement "while" "(" Expr ")" 
 Expression.         Statement           ::= Expr ";" ;
 IfElse.             Statement           ::= "if" "(" Expr ")" Statement "else" Statement;
 If.                 Statement           ::= "if" "(" Expr ")" Statement;
+
+
+
+
+For.                Statement           ::= "for" "(" ";" ";" ")" Statement;
+Break.              Statement           ::= "break" ";";
+Continue.           Statement           ::= "continue" ";";
+
+
+
+
 [].                 [Expr]              ::= ;
 (:[]).              [Expr]              ::= Expr;
 (:).                [Expr]              ::= Expr "," [Expr];
@@ -51,7 +59,6 @@ Ebool.              Expr16              ::= Bool;
 Estrng.             Expr16              ::= String;
 Eitm.               Expr16              ::= CIdent;
 Efun.               Expr15              ::= CIdent "(" [Expr] ")";
-EModFun.            Expr15              ::= [CIdent] "(" [Expr] ")";
 Eainc.              Expr14              ::= Expr15 "++";
 Eadec.              Expr14              ::= Expr15 "--";
 Epinc.              Expr13              ::= "++" Expr14;

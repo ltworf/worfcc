@@ -19,40 +19,6 @@
 # 
 # author Salvo "LtWorf" Tomaselli <tiposchi@tiscali.it>
 
-'''
--- Grammar for Javalette    Salvo 'LtWorf' Tomaselli
-entrypoints Program ;
-comment "//" ;
-comment "/*" "*/" ;
-comment "#";    --Stripping out preprocessor stuff. This will make it just not work on some real-life code.
-position token CIdent (letter | '_') (letter | digit | '_')*;       --Identifiers start with letter or '_' and then can have numbers too.
-
-
-Program.            Program             ::= [Declaration];
-TrueLit.            Bool                ::= "true";    --Naming it boolean it won't compile
-FalseLit.           Bool                ::= "false";
-Typestrng.          Type                ::= "string";    --Maybe someone will not like this?
-Typebool.           Type                ::= "boolean";
-Typedouble.         Type                ::= "double";
-Typeint.            Type                ::= "int";
-Typevoid.           Type                ::= "void";
-[].                 [Declaration]       ::= ;--Allow empty declaration list
-(:).                [Declaration]       ::= Declaration [Declaration];
-[].                 [Statement]         ::= ; --Allow empty statement list
-(:).                [Statement]         ::= Statement [Statement];
-Argument.           Argument            ::= Type CIdent;
-[].                 [Argument]          ::= ; --3 rules to have no arguments, and having the ending argument without the ','
-(:[]).              [Argument]          ::= Argument;
-(:).                [Argument]          ::= Argument "," [Argument];
-Fnct.               Declaration         ::= Type CIdent "(" [Argument] ")" "{" [Statement] "}"; --2nd part of function declaration. Splitted for conflicts problems
-(:[]).              [VItem]             ::= VItem;
-(:).                [VItem]             ::= VItem "," [VItem];
-[].                 [Expr]              ::= ;
-(:[]).              [Expr]              ::= Expr;
-(:).                [Expr]              ::= Expr "," [Expr];
-coercions Expr 16 ;
-'''
-
 import typechecker
 import sys
 import cpp
@@ -65,6 +31,8 @@ import lcontext
 def llvm_compile(filename):
     '''Compiles the program into LLVM assembly'''
     prog,contx,inf=typechecker.checkfile(filename)
+    
+    
     
     #Gets the name of the module
     mname='.'.join(os.path.basename(filename).split('.')[:-1])
@@ -152,6 +120,13 @@ class function():
             cpp.Absyn.Typeint: {cpp.Absyn.Elt :'slt',cpp.Absyn.Egt :'sgt',cpp.Absyn.Eelt:'sle',cpp.Absyn.Eegt:'sge',cpp.Absyn.Eeql:'eq',cpp.Absyn.Edif:'ne'},
             cpp.Absyn.Typedouble: {cpp.Absyn.Elt :'olt',cpp.Absyn.Egt :'ogt',cpp.Absyn.Eelt:'ole',cpp.Absyn.Eegt:'oge',cpp.Absyn.Eeql:'oeq',cpp.Absyn.Edif:'one'},
         }
+        
+        
+        #Label to jump when meeting a break
+        self.breaklabel=None
+        
+        #Label to jump when meeting a continue
+        self.continuelabel=None
         
         #Function to compile
         self.fnct=f
@@ -247,6 +222,16 @@ class function():
             
             if isinstance(i,cpp.Absyn.Expression):
                 self.compile_expr(i.expr_)
+            elif isinstance(i,cpp.Absyn.Break):
+                if self.breaklabel!=None:
+                    self.emit('br label %%%s' % (self.breaklabel))
+                else:
+                    raise Exception("break in wrong position")
+            elif isinstance(i,cpp.Absyn.Continue):
+                if self.continuelabel!=None:
+                    self.emit('br label %%%s' % (self.continuelabel))
+                else:
+                    raise Exception("continue in wrong position")
             elif isinstance(i,cpp.Absyn.VoidReturn):
                 self.emit('ret void')
             elif isinstance(i,cpp.Absyn.Return):
@@ -298,31 +283,14 @@ class function():
                 
                 self.emit('%s:' % lbl_endif) # ENDIF
             elif isinstance(i,cpp.Absyn.While) or isinstance(i,cpp.Absyn.DoWhile):    #While/Do-while loop
+                oldbreaklabel=self.breaklabel
+                oldcontinuelabel=self.continuelabel
+            
                 #Labels
                 l_id=self.module.get_lbl()
                 lbl_while="while_%d" %l_id
-                lbl_expr="expr_%d" %l_id
-                lbl_endwhile="endwhile_%d" %l_id
-                
-                #Code generation if the condition is constant
-                if self.inf.getinfer(i.expr_)==True:
-                    self.emit('br label %%%s' % (lbl_while))
-                    self.emit ( "%s:" % lbl_while)
-                    self.compile_block((i.statement_,),False)  #While body
-                    self.emit('br label %%%s' % (lbl_while))
-                    self.emit('unreachable')
-                    if options.warningLevel>2:
-                        print "WARNING: infinite loop detected. This warning will be shown until the problem will be fixed"
-                    continue
-                elif self.inf.getinfer(i.expr_)==False and isinstance(i,cpp.Absyn.While):
-                    if options.warningLevel>2:
-                        print  "WARNING: never executed while loop"
-                    continue
-                elif self.inf.getinfer(i.expr_)==False and isinstance(i,cpp.Absyn.DoWhile):
-                    self.compile_block((i.statement_,),False)
-                    if options.warningLevel>2:
-                        print "WARNING: do-while will be executed only once"
-                    continue
+                self.continuelabel=lbl_expr="expr_%d" %l_id
+                self.breaklabel=lbl_endwhile="endwhile_%d" %l_id
                 
                 #A do-while always executes the 1st time
                 if isinstance(i,cpp.Absyn.While):
@@ -343,6 +311,10 @@ class function():
                 self.emit('br i1 %s , label %%%s , label %%%s' % (r1,lbl_while,lbl_endwhile) )
                 
                 self.emit ( "%s:" % lbl_endwhile)
+                
+                #Restoring labels for break and continue
+                self.breaklabel=oldbreaklabel
+                self.continuelabel=oldcontinuelabel
             elif isinstance(i,cpp.Absyn.LocalVars):
                 size=self.module.get_size(i.type_)
                 for j in i.listvitem_:
@@ -513,7 +485,7 @@ class function():
         elif isinstance(expr,cpp.Absyn.ENot):
             #This will work because the register is 1bit
             r1=self.compile_expr(expr.expr_)
-            self.emit('%s = xor i1 %s , true' % (id_,r1))
+            self.emit('%s = add i1 %s , 1' % (id_,r1))
 
         return id_
     
