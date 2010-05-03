@@ -39,17 +39,11 @@ DoWhile.            Statement           ::= "do" Statement "while" "(" Expr ")" 
 Expression.         Statement           ::= Expr ";" ;
 IfElse.             Statement           ::= "if" "(" Expr ")" Statement "else" Statement;
 If.                 Statement           ::= "if" "(" Expr ")" Statement;
-
-
-
-
-For.                Statement           ::= "for" "(" ";" ";" ")" Statement;
+For.                Statement           ::= "for" "(" InitFor ";" [Expr] ";" [Expr] ")" Statement;
 Break.              Statement           ::= "break" ";";
 Continue.           Statement           ::= "continue" ";";
-
-
-
-
+ForDecl.            InitFor             ::= Type [VItem];
+ForExpr.            InitFor             ::= [Expr];
 [].                 [Expr]              ::= ;
 (:[]).              [Expr]              ::= Expr;
 (:).                [Expr]              ::= Expr "," [Expr];

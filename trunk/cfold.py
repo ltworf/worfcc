@@ -32,7 +32,7 @@ def fold_declaration(f):
 def fold_statement(s):
     '''Folds the expressions contained within the statement and 
     does nothing on the statements without expressions'''
-
+    
     #Folds the expression
     if s.__class__ in (cpp.Absyn.Return,cpp.Absyn.While,cpp.Absyn.DoWhile,cpp.Absyn.Expression,cpp.Absyn.IfElse,cpp.Absyn.If):
         s.expr_=fold_expression(s.expr_)

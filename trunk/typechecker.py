@@ -108,6 +108,53 @@ def check_const_expr(i,t_inf,contx):
     else:
         return infer(i.expr_,contx,t_inf)
 
+def for_to_while(s):
+    '''ForDecl.            InitFor             ::= Type [VItem];
+    ForExpr.            InitFor             ::= [Expr];
+
+    For.                Statement           ::= "for" "(" InitFor ";" [Expr] ";" [Expr] ")" Statement;'''
+    
+    #List for 1st level block
+    b1=cpp.Absyn.ListStatement()
+    b2=cpp.Absyn.ListStatement()
+    
+    
+    #Adds the initialization
+    if isinstance(s.initfor_,cpp.Absyn.ForExpr):
+        for i in s.initfor_.listexpr_:
+            b1.add(cpp.Absyn.Expression(i))
+    elif isinstance(s.initfor_,cpp.Absyn.ForDecl):
+        b1.add(cpp.Absyn.LocalVars(s.initfor_.type_,s.initfor_.listvitem_))
+    
+    
+    if len(s.listexpr_1)>0:
+        #Expr of 2nd expression
+        for i in range(len(s.listexpr_1)-1):
+            b1.add(cpp.Absyn.Expression(s.listexpr_1[i]))
+        #The last expr is the condition
+        e=s.listexpr_1[len(s.listexpr_1)-1]
+    else: #No condition expression
+        e=cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
+        
+    #While cycle
+    b1.add(cpp.Absyn.While(e,cpp.Absyn.Block(b2)))
+    
+    #Statements
+    b2.add(s.statement_)
+    
+    #Expr3
+    for i in s.listexpr_2:
+        b2.add(cpp.Absyn.Expression(i))
+    
+    #Expr2 again
+    if len(s.listexpr_1)>1:
+        for i in range(len(s.listexpr_1)-1):
+            b2.add(cpp.Absyn.Expression(s.listexpr_1[i]))
+    
+    #Return the block
+    return cpp.Absyn.Block(b1)
+    
+
 def chk_block(statements,contx,new_contx,return_,t_inf):
     '''Checks a block. A block can be a function.
     statements          list of the statements in the block (order is important)
@@ -127,6 +174,12 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
     #Checking the statements
     for index in range(len(statements)):
         i=statements[index] #I use this to know if there are statements after the return
+        
+        
+        #Replaces for with while
+        if isinstance(i,cpp.Absyn.For):
+            i=statements[index]=for_to_while(i)
+        
 
         if isinstance(i,cpp.Absyn.Return):    #Return with value
             has_return=True
