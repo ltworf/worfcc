@@ -39,4 +39,9 @@ def printabletype(ty):
         t="void"
     elif isinstance(ty,cpp.Absyn.Typestrng):
         t="string"
+    elif isinstance(ty,cpp.Absyn.Typearray):
+        t=printabletype(ty.type_)
+        for i in range(ty.level_):
+            t+='[]'
+        
     return t

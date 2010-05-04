@@ -202,8 +202,9 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
                     contx.put(j.cident_,i.type_)    #Putting the new vars into the context
                 else: #Declaration and assignment
                     q=infer(j.expr_,contx,t_inf)
-                    if q.__class__==i.type_.__class__:
-                        contx.put(j.cident_,i.type_)
+                    
+                    if q.__class__==i.type_.__class__ and ((not isinstance(i.type_,cpp.Absyn.Typearray)) or (q.__class__ == i.type_.__class__ and q.level_ == i.type_.level_)):
+                            contx.put(j.cident_,i.type_)
                     else:
                         err.error("Type mismatch in declaration %s, expected %s got %s"% (j.cident_,err.printabletype(i.type_),err.printabletype(q)),contx)
         elif isinstance(i,cpp.Absyn.Block):     #Block
@@ -283,6 +284,40 @@ def infer(expr,contx,t_inf):
         return t_inf.putinfer(expr,cpp.Absyn.Typebool())
     elif isinstance(expr,cpp.Absyn.Estrng):
         return t_inf.putinfer(expr,cpp.Absyn.Typestrng())
+    elif isinstance(expr,cpp.Absyn.Enew):
+        q=cpp.Absyn.Typearray(expr.type_)
+        q.level_=len(expr.listarrsize_)
+        for i in expr.listarrsize_:
+            inf=infer(i.expr_,contx,t_inf)
+            if not isinstance(inf,cpp.Absyn.Typeint):
+                err.error('Array index must be int',contx)
+        return t_inf.putinfer(expr,q)
+    elif isinstance(expr,cpp.Absyn.Eaitm):
+        if isinstance(contx.get(expr.cident_),cpp.Absyn.Typearray):
+            p=contx.get(expr.cident_)
+            print p.level_,p.type_
+            
+            #Check index expressions
+            for i in expr.listarrsize_:
+                inf=infer(i.expr_,contx,t_inf)
+                if not isinstance(inf,cpp.Absyn.Typeint):
+                    err.error('Array index must be int',contx)
+            if p.level_-len(expr.listarrsize_)<0:
+                err.error('Wrong number of dimentions in array index',contx)
+            elif p.level_-len(expr.listarrsize_)==0:
+                return t_inf.putinfer(expr,p.type_)
+            else:
+                q=cpp.Absyn.Typearray(contx.get(expr.cident_).type_)
+                q.level_=contx.get(expr.cident_).level_-1
+                return t_inf.putinfer(expr,q)
+        else:
+            err.error("Can't index non-array items",contx)
+        
+    elif isinstance(expr,cpp.Absyn.Eprop):
+        inf=infer(expr.expr_,contx,t_inf)
+        if expr.cident_=='length' and isinstance(inf,cpp.Absyn.Typearray):
+            return t_inf.putinfer(expr,cpp.Absyn.Typeint())
+        err.error("Unexpected attribute or attribute on non-array",contx)
     #Negation "-a"
     elif isinstance(expr,cpp.Absyn.ENeg):
         inf=infer(expr.expr_,contx,t_inf)
@@ -373,13 +408,23 @@ def infer(expr,contx,t_inf):
 
     #Assigment
     elif isinstance(expr,cpp.Absyn.Eass):
-        if not isinstance(expr.expr_1,cpp.Absyn.Eitm):
+        if not (isinstance(expr.expr_1,cpp.Absyn.Eitm) or isinstance(expr.expr_1,cpp.Absyn.Eaitm)):
             err.error("Can't assign expression to expression",contx)
         
-        inf=infer(expr.expr_2,contx,t_inf)
+        inf=infer(expr.expr_2,contx,t_inf) #Infer right side expression
         
+        #Infer indexes of array
+        if isinstance(expr.expr_1,cpp.Absyn.Eaitm):
+            for k in expr.expr_1.listarrsize_:
+                inf=infer(k.expr_,contx,t_inf) #Infer right side expression
         if inf.__class__ == contx.get(expr.expr_1.cident_).__class__:
-            return t_inf.putinfer(expr,inf)
+            if not isinstance(inf,cpp.Absyn.Typearray):
+                return t_inf.putinfer(expr,inf)
+            else:
+                if contx.get(expr.expr_1.cident_).type_.__class__ == inf.type_.__class__ and contx.get(expr.expr_1.cident_).level_ == inf.level_:
+                    return t_inf.putinfer(expr,inf)
+                else:
+                    err.error("Type mismatch in array assignment",contx)
         else:
             err.error("Type mismatch in assignment, expected "+ err.printabletype(contx.get(expr.expr_1.cident_))   +" got " + err.printabletype(inf),contx)
 

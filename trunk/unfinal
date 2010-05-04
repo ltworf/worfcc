@@ -7,5 +7,7 @@ do
 	mv $i.new $i
 done
 cd ../../
+cp Typearray.java cpp/Absyn
+
 echo Recompiling...
 javac cpp/Absyn/*.java
