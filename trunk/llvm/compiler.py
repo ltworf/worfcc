@@ -406,7 +406,9 @@ class function():
         id_2='%%t%d' % self.get_register_id()
         
         self.emit('%s = mul i32 %s, %s\t;Calculate the size of the memory for the array' % (id_1,r1,b_size))
-        self.emit('%s = add i32 4,%s\t;Plus 4 bytes for the length' % (id_2,id_1))
+        
+        #8 because my computer is x86_64, otherwise i risk segfault and other strange stuff
+        self.emit('%s = add i32 8,%s\t;Plus 8 bytes for the length' % (id_2,id_1))
         return id_2
     
     def compile_new(self,expr,level,size=None,expr_size=None,r1=None):

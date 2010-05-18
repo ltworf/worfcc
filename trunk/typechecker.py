@@ -108,11 +108,108 @@ def check_const_expr(i,t_inf,contx):
     else:
         return infer(i.expr_,contx,t_inf)
 
-def for_to_while(s):
+def for_each_to_while(s):
+    '''Converts a foreach cycle into a while cycle'''
     '''ForDecl.            InitFor             ::= Type [VItem];
     ForExpr.            InitFor             ::= [Expr];
+    For.                Statement           ::= "for" "(" InitFor ";" [Expr] ";" [Expr] ")" Statement;
+    Foreach.            Statement           ::= "for" "(" Type CIdent ":" Expr ")" Statement;
+    
+    (:[]).              [VItem]             ::= VItem;
+    (:).                [VItem]             ::= VItem "," [VItem];
+    ForDecl.            InitFor             ::= Type [VItem];
+    ForExpr.            InitFor             ::= [Expr];
+    
+    VarNA.              VItem               ::= CIdent;
 
-    For.                Statement           ::= "for" "(" InitFor ";" [Expr] ";" [Expr] ")" Statement;'''
+    LocalVars.          Statement           ::= Type [VItem] ";";
+    
+    While.              Statement           ::= "while" "(" Expr ")" Statement;
+
+    '''
+    #
+    b1=cpp.Absyn.ListStatement() #Block
+    b2=cpp.Absyn.ListStatement() #While body
+    
+    ind_name='__index__%s' % s.__str__() #Indexvar name
+    
+    #Iter variable
+    t1=cpp.Absyn.VarNA(s.cident_)
+    t2=cpp.Absyn.ListVItem()
+    t2.add(t1)
+    t3=cpp.Absyn.LocalVars(s.type_,t2)
+    b1.add(t3)
+    
+    #index variable
+    t1=cpp.Absyn.VarNA(ind_name)
+    t2=cpp.Absyn.ListVItem()
+    t2.add(t1)
+    t3=cpp.Absyn.LocalVars(cpp.Absyn.Typeint(),t2)
+    b1.add(t3)
+    
+    #Creating while condition
+    #index<a.length
+    e_index=cpp.Absyn.Eitm(ind_name) #Expression with index name
+    a_prop=cpp.Absyn.Eprop(s.expr_,'length') #array.length
+    expr= cpp.Absyn.Elt(e_index,a_prop)
+    
+    #Creating while body
+    # i=a[__index__++]
+    
+    t1=cpp.Absyn.Epinc(e_index) #__index__++
+    
+    if isinstance(s.expr_,cpp.Absyn.Eitm):
+        t2=cpp.Absyn.ArrSize(t1)
+        t3=cpp.Absyn.ListArrSize()
+        t3.add(t2)
+        t4=cpp.Absyn.Eaitm(s.expr_.cident_,t3) #a[__index__++]
+    elif isinstance(s.expr_,cpp.Absyn.Eaitm):
+        s.expr_.listarrsize_.add(t1)
+        t4=s.expr_
+    
+    t5=cpp.Absyn.Eitm(s.cident_)
+    t6=cpp.Absyn.Eass(t5,t4)
+    
+    b2.add(cpp.Absyn.Expression(t6))
+    
+    '''ArrSize.            ArrSize             ::= "[" Expr "]";
+(:[]).              [ArrSize]           ::= ArrSize;
+(:).                [ArrSize]           ::= ArrSize [ArrSize];
+Enew.               Expr16              ::= "new" Type [ArrSize];
+Eprop.              Expr16              ::= Expr15 "." CIdent;
+Eint.               Expr16              ::= Integer;
+Edbl.               Expr16              ::= Double;
+Ebool.              Expr16              ::= Bool;
+Estrng.             Expr16              ::= String;
+Eitm.               Expr16              ::= CIdent;
+Eaitm.              Expr16              ::= CIdent[ArrSize];
+Efun.               Expr15              ::= CIdent "(" [Expr] ")";
+Eainc.              Expr14              ::= Expr15 "++";
+ENeg.               Expr12              ::= "-" Expr13 ;
+ENot.               Expr12              ::= "!" Expr13 ;
+Emul.               Expr11              ::= Expr11 "*" Expr12;
+Eadd.               Expr10              ::= Expr10 "+" Expr11;
+Esub.               Expr10              ::= Expr10 "-" Expr11;
+Elt.                Expr9               ::= Expr9 "<" Expr10;
+Egt.                Expr9               ::= Expr9 ">" Expr10;
+Eelt.               Expr9               ::= Expr9 "<=" Expr10;
+Eegt.               Expr9               ::= Expr9 ">=" Expr10;
+Eeql.               Expr8               ::= Expr8 "==" Expr9;
+Edif.               Expr8               ::= Expr8 "!=" Expr9;
+Eand.               Expr4               ::= Expr4 "&&" Expr5;
+Eor.                Expr3               ::= Expr3 "||" Expr4;
+Eass.               Expr2               ::= Expr3 "=" Expr2;'''
+        
+    b2.add(s.statement_)
+    
+    #Creating the while cycle
+    w=cpp.Absyn.While(expr,cpp.Absyn.Block(b2))
+    b1.add(w)
+    
+    return cpp.Absyn.Block(b1)
+    
+def for_to_while(s):
+    
     
     #List for 1st level block
     b1=cpp.Absyn.ListStatement()
@@ -176,10 +273,11 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
         i=statements[index] #I use this to know if there are statements after the return
         
         
-        #Replaces for with while
+        #Replaces for/foreach with while
         if isinstance(i,cpp.Absyn.For):
             i=statements[index]=for_to_while(i)
-        
+        elif isinstance(i,cpp.Absyn.Foreach):
+            i=statements[index]=for_each_to_while(i)
 
         if isinstance(i,cpp.Absyn.Return):    #Return with value
             has_return=True
