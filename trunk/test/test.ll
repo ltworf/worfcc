@@ -15,7 +15,7 @@ entry:
 store i32 4, i32* %t6	;stores the size of the array
 store {i32,[ 0 x double ]}* %t4, {i32,[ 0 x double ]}** %v_0
 %v_1 = alloca {i32,[ 0 x {i32,[ 0 x double ]}* ]}*
-%t9 = mul i32 4, 4	;Calculate the size of the memory for the array
+%t9 = mul i32 4, 8	;Calculate the size of the memory for the array
 %t10 = add i32 8,%t9	;Plus 8 bytes for the length
 %t12 = call noalias i8* @calloc(i32 %t10,i32 1) nounwind
 %t11 = bitcast i8* %t12 to {i32,[ 0 x {i32,[ 0 x double ]}* ]}*
@@ -135,22 +135,19 @@ expr_6:
 %t89 = icmp slt i32 %t90 , %t91
 br i1 %t89 , label %while_6 , label %endwhile_6
 endwhile_6:
-
 %v_6 = alloca {i32,[ 0 x double ]}*
-;store {i32,[ 0 x double ]}* 0.0, {i32,[ 0 x double ]}** %v_6
-
-
 %v_7 = alloca i32
 store i32 0, i32* %v_7
 br label %expr_7
 while_7:
-%t97 = load i32* %v_7
-%t96 = add i32 1 , %t97
-store i32 %t96, i32* %v_7
-%t98 = load {i32,[ 0 x {i32,[ 0 x double ]}* ]}** %v_1
-%t99 = getelementptr {i32,[ 0 x {i32,[ 0 x double ]}* ]}* %t98, i32 0, i32 1, i32 %t96
-%t95 = load {i32,[ 0 x double ]}** %t99
+%t96 = load i32* %v_7
+%t97 = load {i32,[ 0 x {i32,[ 0 x double ]}* ]}** %v_1
+%t98 = getelementptr {i32,[ 0 x {i32,[ 0 x double ]}* ]}* %t97, i32 0, i32 1, i32 %t96
+%t95 = load {i32,[ 0 x double ]}** %t98
 store {i32,[ 0 x double ]}* %t95, {i32,[ 0 x double ]}** %v_6
+%t100 = load i32* %v_7
+%t99 = add i32 1 , %t100
+store i32 %t99, i32* %v_7
 %v_8 = alloca double
 store double 0.0, double* %v_8
 %v_9 = alloca i32
@@ -158,31 +155,32 @@ store i32 0, i32* %v_9
 br label %expr_8
 while_8:
 %t103 = load i32* %v_9
-%t102 = add i32 1 , %t103
-store i32 %t102, i32* %v_9
 %t104 = load {i32,[ 0 x double ]}** %v_6
-%t105 = getelementptr {i32,[ 0 x double ]}* %t104, i32 0, i32 1, i32 %t102
-%t101 = load double* %t105
-store double %t101, double* %v_8
-%t107 = load double* %v_8
-call void @printDouble (double %t107)
+%t105 = getelementptr {i32,[ 0 x double ]}* %t104, i32 0, i32 1, i32 %t103
+%t102 = load double* %t105
+store double %t102, double* %v_8
+%t107 = load i32* %v_9
+%t106 = add i32 1 , %t107
+store i32 %t106, i32* %v_9
+%t109 = load double* %v_8
+call void @printDouble (double %t109)
 br label %expr_8
 expr_8:
-%t109 = load i32* %v_9
-%t111 = load {i32,[ 0 x double ]}** %v_6
-%t112 = getelementptr {i32,[ 0 x double ]}* %t111, i32 0, i32 0
-%t110 = load i32* %t112
-%t108 = icmp slt i32 %t109 , %t110
-br i1 %t108 , label %while_8 , label %endwhile_8
+%t111 = load i32* %v_9
+%t113 = load {i32,[ 0 x double ]}** %v_6
+%t114 = getelementptr {i32,[ 0 x double ]}* %t113, i32 0, i32 0
+%t112 = load i32* %t114
+%t110 = icmp slt i32 %t111 , %t112
+br i1 %t110 , label %while_8 , label %endwhile_8
 endwhile_8:
 br label %expr_7
 expr_7:
-%t114 = load i32* %v_7
-%t116 = load {i32,[ 0 x {i32,[ 0 x double ]}* ]}** %v_1
-%t117 = getelementptr {i32,[ 0 x {i32,[ 0 x double ]}* ]}* %t116, i32 0, i32 0
-%t115 = load i32* %t117
-%t113 = icmp slt i32 %t114 , %t115
-br i1 %t113 , label %while_7 , label %endwhile_7
+%t116 = load i32* %v_7
+%t118 = load {i32,[ 0 x {i32,[ 0 x double ]}* ]}** %v_1
+%t119 = getelementptr {i32,[ 0 x {i32,[ 0 x double ]}* ]}* %t118, i32 0, i32 0
+%t117 = load i32* %t119
+%t115 = icmp slt i32 %t116 , %t117
+br i1 %t115 , label %while_7 , label %endwhile_7
 endwhile_7:
 ret i32 0
 }

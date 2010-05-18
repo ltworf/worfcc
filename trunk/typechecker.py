@@ -154,23 +154,24 @@ def for_each_to_while(s):
     expr= cpp.Absyn.Elt(e_index,a_prop)
     
     #Creating while body
-    # i=a[__index__++]
-    
-    t1=cpp.Absyn.Epinc(e_index) #__index__++
+    # i=a[__index__];__index__++
     
     if isinstance(s.expr_,cpp.Absyn.Eitm):
-        t2=cpp.Absyn.ArrSize(t1)
+        t2=cpp.Absyn.ArrSize(e_index)
         t3=cpp.Absyn.ListArrSize()
         t3.add(t2)
         t4=cpp.Absyn.Eaitm(s.expr_.cident_,t3) #a[__index__++]
     elif isinstance(s.expr_,cpp.Absyn.Eaitm):
-        s.expr_.listarrsize_.add(t1)
+        s.expr_.listarrsize_.add(e_index)
         t4=s.expr_
     
     t5=cpp.Absyn.Eitm(s.cident_)
     t6=cpp.Absyn.Eass(t5,t4)
     
     b2.add(cpp.Absyn.Expression(t6))
+    
+    t1=cpp.Absyn.Epinc(e_index) #__index__++
+    b2.add(cpp.Absyn.Expression(t1))
     
     '''ArrSize.            ArrSize             ::= "[" Expr "]";
 (:[]).              [ArrSize]           ::= ArrSize;
@@ -209,7 +210,7 @@ Eass.               Expr2               ::= Expr3 "=" Expr2;'''
     return cpp.Absyn.Block(b1)
     
 def for_to_while(s):
-    
+    '''Converts a for loop into a while loop'''
     
     #List for 1st level block
     b1=cpp.Absyn.ListStatement()

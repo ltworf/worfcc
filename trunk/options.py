@@ -22,3 +22,5 @@
 improvementLevel=1
 warningLevel=0
 target="llvm"
+
+PTR_SIZE=8

@@ -224,7 +224,9 @@ class function():
         return '%%v_%d' % self.var_name
         
     def __get_zero__(self,type_,num='0'):
-        if isinstance(type_,cpp.Absyn.Typedouble):
+        if isinstance(type_,cpp.Absyn.Typearray):
+            return None
+        elif isinstance(type_,cpp.Absyn.Typedouble):
             return '%s.0' % num
         return '%s' % num
                             
@@ -346,8 +348,8 @@ class function():
                     if isinstance(j,cpp.Absyn.VarNA):
                         #Inits the var to 0
                         zero=self.__get_zero__(i.type_)
-                            
-                        self.emit('store %s %s, %s* %s' % (size,zero,size,var))
+                        if zero!=None:
+                            self.emit('store %s %s, %s* %s' % (size,zero,size,var))
                     elif isinstance(j,cpp.Absyn.VarVA):
                         r1=self.compile_expr(j.expr_)
                         self.emit('store %s %s, %s* %s' % (size,r1,size,var))
@@ -408,14 +410,14 @@ class function():
         self.emit('%s = mul i32 %s, %s\t;Calculate the size of the memory for the array' % (id_1,r1,b_size))
         
         #8 because my computer is x86_64, otherwise i risk segfault and other strange stuff
-        self.emit('%s = add i32 8,%s\t;Plus 8 bytes for the length' % (id_2,id_1))
+        self.emit('%s = add i32 %d,%s\t;Plus 8 bytes for the length' % (id_2,options.PTR_SIZE,id_1))
         return id_2
     
     def compile_new(self,expr,level,size=None,expr_size=None,r1=None):
         if expr_size==None: expr_size=self.module.get_size( self.inf.getinfer(expr))
         
         #Item size is 4 for pointers and otherwise checks for the type
-        b_size= level==1 and self.module.get_byte_size(expr.type_) or 4
+        b_size= level==1 and self.module.get_byte_size(expr.type_) or options.PTR_SIZE
         
         if r1==None: r1=self.compile_expr(expr.listarrsize_[level-1].expr_)
         if size==None: size=self.compile_array_size(b_size,r1)
