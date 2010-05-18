@@ -43,6 +43,7 @@ Expression.         Statement           ::= Expr ";" ;
 IfElse.             Statement           ::= "if" "(" Expr ")" Statement "else" Statement;
 If.                 Statement           ::= "if" "(" Expr ")" Statement;
 For.                Statement           ::= "for" "(" InitFor ";" [Expr] ";" [Expr] ")" Statement;
+Foreach.            Statement           ::= "for" "(" Type CIdent ":" Expr ")" Statement;
 Break.              Statement           ::= "break" ";";
 Continue.           Statement           ::= "continue" ";";
 

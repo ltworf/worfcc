@@ -49,8 +49,8 @@ def llvm_compile(filename):
     f.write('declare void @printString(i8* %s)\n')
     f.write('declare i32 @readInt()\n')
     f.write('declare double @readDouble()\n')
-
-
+    
+    f.write('declare noalias i8* @calloc(i32,i32) nounwind\n')
     
     for i in mod.code:
         f.write('%s\n'% i)
@@ -94,6 +94,20 @@ class module():
             self.constcount+=1
         return self.const[cnst]
     
+    def get_byte_size(self,type_):
+        if isinstance(type_,cpp.Absyn.Typeint):
+            return 4
+        elif isinstance(type_,cpp.Absyn.Typebool):
+            return 1
+        elif isinstance(type_,cpp.Absyn.Typestrng):
+            return 'i8*' #//TODO
+        elif isinstance(type_,cpp.Absyn.Typedouble):
+            return 8
+        elif isinstance(type_,cpp.Absyn.Typevoid):
+            return 'void' #//TODO
+        else: #/TODO REMOVE THIS!!!
+            return 'i32*' #//TODO
+            
     def get_size(self,type_):
         if isinstance(type_,cpp.Absyn.Typeint):
             return 'i32'
@@ -105,8 +119,16 @@ class module():
             return 'double'
         elif isinstance(type_,cpp.Absyn.Typevoid):
             return 'void'
+        elif isinstance(type_,cpp.Absyn.Typearray):
+            if type_.level_<=1: #Can be 0 only to avoid extra code somewhere else, but the result will be ignored
+                t=self.get_size(type_.type_)
+            else:
+                a=cpp.Absyn.Typearray(type_.type_)
+                a.level_=type_.level_-1
+                t=self.get_size(a)
+            return '{i32,[ 0 x %s ]}*' % t
         else: #/TODO REMOVE THIS!!!
-            return '128'
+            return 'i32*'
     
 class function():
     def __init__(self,f,contx,inf,mname,module):
@@ -120,7 +142,6 @@ class function():
             cpp.Absyn.Typeint: {cpp.Absyn.Elt :'slt',cpp.Absyn.Egt :'sgt',cpp.Absyn.Eelt:'sle',cpp.Absyn.Eegt:'sge',cpp.Absyn.Eeql:'eq',cpp.Absyn.Edif:'ne'},
             cpp.Absyn.Typedouble: {cpp.Absyn.Elt :'olt',cpp.Absyn.Egt :'ogt',cpp.Absyn.Eelt:'ole',cpp.Absyn.Eegt:'oge',cpp.Absyn.Eeql:'oeq',cpp.Absyn.Edif:'one'},
         }
-        
         
         #Label to jump when meeting a break
         self.breaklabel=None
@@ -155,7 +176,6 @@ class function():
         #Code
         self.code=[]
         
-        
         self.var_contx.push()
 
         args=[]
@@ -171,10 +191,12 @@ class function():
         
         self.emit("entry:")
         
-        #Puts params to the stack
+        #Puts params to the stack //TODO add code for arrays
         par=0
         for i in f.listargument_:
-            var=self.get_var_name()
+            var=level_string(self.get_var_name())
+            if isinstance(i.type_,cpp.Absyn.Typearray):
+                var.level=i.type_.level_
             self.var_contx.put(i.cident_,var)
             self.emit('%s = alloca %s' % (var,size))
             p='%%par_%d' % par
@@ -186,7 +208,6 @@ class function():
         #Adds an 'unreachable' statement if needed
         if self.code[len(self.code)-1].endswith(':'):
             self.emit('unreachable')
-        
         
         self.emit("}")
         
@@ -303,7 +324,6 @@ class function():
                 
                 self.emit('br label %%%s' % (lbl_expr))
                 
-                
                 self.emit ( "%s:" % lbl_expr)
                 
                 r1=self.compile_expr(i.expr_) #Calculate the expression
@@ -318,7 +338,9 @@ class function():
             elif isinstance(i,cpp.Absyn.LocalVars):
                 size=self.module.get_size(i.type_)
                 for j in i.listvitem_:
-                    var=self.get_var_name()
+                    var=level_string(self.get_var_name())
+                    if isinstance(i.type_,cpp.Absyn.Typearray):
+                        var.level=i.type_.level_
                     self.emit('%s = alloca %s' % (var,size))
                     
                     if isinstance(j,cpp.Absyn.VarNA):
@@ -335,7 +357,139 @@ class function():
         
         pass
     
-    def compile_expr(self,expr):
+    def compile_array_access(self,expr):
+        '''Returns an address containing the reference to the
+        array item.'''
+        #.              Expr16              ::= CIdent[ArrSize];
+        #ArrSize.            ArrSize             ::= "[" Expr "]";
+        
+        #Create a new instance of Typearray because it's going to be modified
+        #So i have to recreate it
+        t_a=cpp.Absyn.Typearray(self.inf.getinfer(expr))
+        t_a.level_=self.var_contx.get(expr.cident_).level #len(expr.listarrsize_)
+        expr_size=self.module.get_size(t_a)
+        
+        var=self.var_contx.get(expr.cident_)
+        
+        for i in expr.listarrsize_:
+            ide_=self.compile_expr(i.expr_)
+            
+            id_1='%%t%d' % self.get_register_id()
+            id_='%%t%d' % self.get_register_id()
+            
+            self.emit('%s = load %s* %s' % (id_1,expr_size,var))
+            var=id_
+            self.emit('%s = getelementptr %s %s, i32 0, i32 1, i32 %s' % (id_,expr_size,id_1,ide_))
+            
+            #Reduces size for the next iteration
+            t_a.level_-=1
+            expr_size=self.module.get_size(t_a)
+            
+        return id_
+    
+    
+    def alloc_array(self,size,a_size,expr_size):
+        id_='%%t%d' % self.get_register_id()
+        id_2='%%t%d' % self.get_register_id()
+        id_3='%%t%d' % self.get_register_id()
+        
+        self.emit('%s = call noalias i8* @calloc(i32 %s,i32 1) nounwind' % (id_2,size))
+        self.emit('%s = bitcast i8* %s to %s' % (id_,id_2,expr_size))
+    
+        #Save the len
+        self.emit('%s = getelementptr %s %s, i32 0, i32 0' %(id_3,expr_size,id_))
+        self.emit('store i32 %s, i32* %s\t;stores the size of the array' % (a_size,id_3))
+        return id_
+    
+    def compile_array_size(self,b_size,r1):
+        id_1='%%t%d' % self.get_register_id()
+        id_2='%%t%d' % self.get_register_id()
+        
+        self.emit('%s = mul i32 %s, %s\t;Calculate the size of the memory for the array' % (id_1,r1,b_size))
+        self.emit('%s = add i32 4,%s\t;Plus 4 bytes for the length' % (id_2,id_1))
+        return id_2
+    
+    def compile_new(self,expr,level,size=None,expr_size=None,r1=None):
+        if expr_size==None: expr_size=self.module.get_size( self.inf.getinfer(expr))
+        
+        #Item size is 4 for pointers and otherwise checks for the type
+        b_size= level==1 and self.module.get_byte_size(expr.type_) or 4
+        
+        if r1==None: r1=self.compile_expr(expr.listarrsize_[level-1].expr_)
+        if size==None: size=self.compile_array_size(b_size,r1)
+
+        if level==1:
+            return self.alloc_array(size,r1,expr_size)
+        else:
+            ret= self.alloc_array(size,r1,expr_size)
+            
+            var_0=self.get_var_name()
+            lbl_body='ar_loop_body_%d'%self.module.get_lbl()
+            lbl_expr='ar_loop_expr_%d'%self.module.get_lbl()
+            lbl_exit='ar_loop_exit_%d'%self.module.get_lbl()
+            id_1='%%t%d' % self.get_register_id()
+            id_2='%%t%d' % self.get_register_id()
+            id_3='%%t%d' % self.get_register_id()
+            id_4='%%t%d' % self.get_register_id()
+            id_5='%%t%d' % self.get_register_id()
+            
+            #init var_0 to 0, it is the index of the array
+            self.emit ('%s = alloca i32'% (var_0))
+            self.emit('store i32 0, i32* %s' % (var_0))
+            
+            r2=self.compile_expr(expr.listarrsize_[level-1].expr_)
+            
+            e=self.inf.getinfer(expr)
+            e.level_=-1
+            expr_size_=self.module.get_size(e)
+            
+            b_size= level-1==1 and self.module.get_byte_size(expr.type_) or 4
+            size_=self.compile_array_size(b_size,r2)
+            
+            #Cycle
+            self.emit('br label %%%s'%lbl_expr) #Jump to evaluate the expr
+            
+           
+            self.emit('%s:'%lbl_body)
+            
+            #Load index variable
+            self.emit('%s = load i32* %s'%(id_1,var_0))
+            
+            arr_ptr=self.compile_new(expr,level-1,size_,expr_size_,r2)
+            e.level_=+1 #Restore the level
+            
+            
+            #ret mem to my array
+            #arr_ptr mem to child array
+            #id_1 index
+            self.emit ('%s = getelementptr %s %s, i32 0, i32 1, i32 %s' % (id_5,expr_size,ret,id_1))
+            self.emit ('store %s %s, %s* %s'% (expr_size_,arr_ptr,expr_size_,id_5))
+            
+            #//TODO store in position
+            
+            
+            #Increases index by 1
+            self.emit('%s = add i32 1 , %s' % (id_2,id_1))
+            self.emit('store i32 %s, i32* %s' % (id_2,var_0))
+            
+            self.emit('br label %%%s'%lbl_expr) #Jump to next block
+            self.emit('%s:'%lbl_expr)#LOOP expression
+            
+            self.emit('%s = load i32* %s'%(id_3,var_0)) #Load the index var
+            self.emit('%s = icmp slt i32 %s , %s' % (id_4,id_3,r1))
+            self.emit('br i1 %s , label %%%s , label %%%s' % (id_4,lbl_body,lbl_exit)) #Jump
+            
+            self.emit('%s:'%lbl_exit)
+            
+            return ret
+    
+    def compile_expr(self,expr,r_reg=False):
+        '''
+        If reg is set to true, the return will be a tuple of
+        (%register_with_result,%var_location)
+        it works only if expr is Eitm or Eaitm
+        '''
+        
         id_='%%t%d' % self.get_register_id()
         expr_size=self.module.get_size( self.inf.getinfer(expr))
         
@@ -352,6 +506,18 @@ class function():
         elif isinstance(expr,cpp.Absyn.Estrng):
             handle=self.module.add_constant(expr.string_)
             self.emit('%s = bitcast [%d x i8]* %s to i8*' % (id_,len(expr.string_)+1,handle))
+        #New
+        elif isinstance(expr,cpp.Absyn.Enew):
+            return self.compile_new(expr,len(expr.listarrsize_))
+        #Property
+        elif isinstance(expr,cpp.Absyn.Eprop):
+            
+            #We only have one prop so it's safe to assume it's length
+            r1=self.compile_expr(expr.expr_)
+            id_2='%%t%d' % self.get_register_id()
+            self.emit('%s = getelementptr %s %s, i32 0, i32 0' %(id_2,self.module.get_size( self.inf.getinfer(expr.expr_)) ,r1))
+            self.emit('%s = load i32* %s'%(id_,id_2))
+            
         #Arithmetic instructions
         elif expr.__class__ in self.aritm[cpp.Absyn.Typeint]:
             r1=self.compile_expr(expr.expr_1)
@@ -386,34 +552,40 @@ class function():
         elif isinstance(expr,cpp.Absyn.Eitm):
             var=self.var_contx.get(expr.cident_)
             self.emit('%s = load %s* %s' % (id_,expr_size,var))
+            if r_reg: return id_,var
+        elif isinstance(expr,cpp.Absyn.Eaitm):
+            var=self.compile_array_access(expr)
+            self.emit('%s = load %s* %s' % (id_,expr_size,var))
+            if r_reg: return id_,var
         #Assignment (as expression, not as statement)
         elif isinstance(expr,cpp.Absyn.Eass):
             var=self.var_contx.get(expr.expr_1.cident_)
             r1=self.compile_expr(expr.expr_2)
-            self.emit('store %s %s, %s* %s' % (expr_size,r1,expr_size,var))
+            
+            if isinstance(expr.expr_1,cpp.Absyn.Eitm):
+                self.emit('store %s %s, %s* %s' % (expr_size,r1,expr_size,var))
+            else:
+                id_2=self.compile_array_access(expr.expr_1)
+                self.emit('store %s %s, %s* %s' %(expr_size,r1,expr_size,id_2))
             return r1
         #Pre and post increment/decrement
         elif isinstance(expr,cpp.Absyn.Eainc):
-            r1=self.compile_expr(expr.expr_)
+            r1,var=self.compile_expr(expr.expr_,True)
             self.emit('%s = add %s 1 , %s' % (id_,expr_size,r1))
-            var=self.var_contx.get(expr.expr_.cident_)
             self.emit('store %s %s, %s* %s' % (expr_size,id_,expr_size,var))
             return r1
         elif isinstance(expr,cpp.Absyn.Eadec):
-            r1=self.compile_expr(expr.expr_)
+            r1,var=self.compile_expr(expr.expr_,True)
             self.emit('%s = sub %s %s , 1' % (id_,expr_size,r1))
-            var=self.var_contx.get(expr.expr_.cident_)
             self.emit('store %s %s, %s* %s' % (expr_size,id_,expr_size,var))
             return r1
         elif isinstance(expr,cpp.Absyn.Epinc):
-            r1=self.compile_expr(expr.expr_)
+            r1,var=self.compile_expr(expr.expr_,True)
             self.emit('%s = add %s 1 , %s' % (id_,expr_size,r1))
-            var=self.var_contx.get(expr.expr_.cident_)
             self.emit('store %s %s, %s* %s' % (expr_size,id_,expr_size,var))
         elif isinstance(expr,cpp.Absyn.Epdec):
-            r1=self.compile_expr(expr.expr_)
+            r1,var=self.compile_expr(expr.expr_,True)
             self.emit('%s = sub %s %s , 1' % (id_,expr_size,r1))
-            var=self.var_contx.get(expr.expr_.cident_)
             self.emit('store %s %s, %s* %s' % (expr_size,id_,expr_size,var))
         #Function call
         elif isinstance(expr,cpp.Absyn.Efun):
@@ -491,13 +663,6 @@ class function():
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
+class level_string(str):
+    level=0
     

@@ -1,19 +1,46 @@
-/* allow comparing booleans. */
-
-int main() {
-    int d=3;
-    boolean r=false;
-    int[][] a=new int[4][3];
-    a=f();
-    printInt(a[0][1]);
-    
-    printInt(a[0].length);
-    printInt(d);
-    return 0;
-    
+int [] doubleArray (int [] a){
+  int [] res = new int [a . length];
+  int i = 0 ;
+  for (int n : a){
+    res [i] = 2 * n ;
+    i ++ ;
+  }
+  return res ;
 }
 
-int [][] f() {
-    int [][] q;
-    return q;
+void shiftLeft (int [] a){
+  int x = a [0];
+  int i = 0 ;
+  while (i < a.length - 1){
+    a [i] = a [i + 1];
+    i ++ ;
+  }
+  a[a.length - 1]= x ;
+  return;
+ }
+
+int scalProd(int[] a, int[] b) {
+  int res = 0;
+  int i = 0;
+  while (i < a.length) {
+    res = res + a[i] * b[i];
+    i++;
+  }
+  return res;
 }
+
+int main () {
+  int [] a = new int [5];
+  int i = 0 ;
+  while (i < a.length){
+    a [i]= i ;
+    i ++ ;
+    }
+  shiftLeft (a);
+  int [] b = doubleArray (a);
+  for (int x : a)printInt (x);
+  for (int x : b)printInt (x);
+  printInt(scalProd(a,b));
+  return 0 ;
+}
+ 

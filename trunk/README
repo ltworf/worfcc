@@ -6,3 +6,20 @@ The rest is self-contained
 
 ./gencode
   Will generate the needed missing classes and run the makefile
+  
+  
+Notes:
+
+Cycles:
+    for (int x:a)
+    a can be any expression returning a 1-dimension array, will be executed only once
+    
+    for (int a=0,b=1;a<max;b--,a++)
+        
+    do while
+    while
+    break
+    continue
+    
+Array: a[1]++ works (not covered in the testsuite)
+Expressions: a=b=1, a=b++; (not required)

@@ -349,7 +349,7 @@ def infer(expr,contx,t_inf):
         inf=infer(expr.expr_,contx,t_inf)
         
         #If the operand is a variable, return its type if it is numeric or raise an error if it is not numeric
-        if isinstance(expr.expr_,cpp.Absyn.Eitm) and isinstance(inf,cpp.Absyn.Typeint):
+        if (isinstance(expr.expr_,cpp.Absyn.Eitm)or isinstance(expr.expr_,cpp.Absyn.Eaitm)) and isinstance(inf,cpp.Absyn.Typeint):
             return t_inf.putinfer(expr,inf)
         else:
             err.error("++ and -- require an int variable",contx)
@@ -411,22 +411,19 @@ def infer(expr,contx,t_inf):
         if not (isinstance(expr.expr_1,cpp.Absyn.Eitm) or isinstance(expr.expr_1,cpp.Absyn.Eaitm)):
             err.error("Can't assign expression to expression",contx)
         
-        inf=infer(expr.expr_2,contx,t_inf) #Infer right side expression
+        inf_1=infer(expr.expr_2,contx,t_inf) #Infer right side expression
+        inf_2=infer(expr.expr_1,contx,t_inf) #Infer left side expression
         
         #Infer indexes of array
-        if isinstance(expr.expr_1,cpp.Absyn.Eaitm):
-            for k in expr.expr_1.listarrsize_:
-                inf=infer(k.expr_,contx,t_inf) #Infer right side expression
-        if inf.__class__ == contx.get(expr.expr_1.cident_).__class__:
-            if not isinstance(inf,cpp.Absyn.Typearray):
-                return t_inf.putinfer(expr,inf)
+        
+        if inf_1.__class__==inf_2.__class__ and isinstance(inf_1,cpp.Absyn.Typearray):
+            if (inf_1.type_.__class__==inf_2.type_.__class__ and inf_1.level_==inf_2.level_): #Both are array, checking array type and level
+                return t_inf.putinfer(expr,inf_1)
             else:
-                if contx.get(expr.expr_1.cident_).type_.__class__ == inf.type_.__class__ and contx.get(expr.expr_1.cident_).level_ == inf.level_:
-                    return t_inf.putinfer(expr,inf)
-                else:
-                    err.error("Type mismatch in array assignment",contx)
-        else:
-            err.error("Type mismatch in assignment, expected "+ err.printabletype(contx.get(expr.expr_1.cident_))   +" got " + err.printabletype(inf),contx)
+                err.error("Type mismatch in assignment, expected "+ err.printabletype(inf_2)   +" got " + err.printabletype(inf_1),contx)
+        if inf_1.__class__==inf_2.__class__:
+            return t_inf.putinfer(expr,inf_1)
+        err.error("Type mismatch in assignment, expected "+ err.printabletype(inf_2)   +" got " + err.printabletype(inf_1),contx)
 
 def chk_fnct_call(expr,contx,fnct,t_inf):
     '''Checks if a function call has the right number of arguments and that they have the right types
