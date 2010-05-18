@@ -416,10 +416,10 @@ class function():
     def compile_new(self,expr,level,size=None,expr_size=None,r1=None):
         if expr_size==None: expr_size=self.module.get_size( self.inf.getinfer(expr))
         
-        #Item size is 4 for pointers and otherwise checks for the type
+        #Item size is 8 for pointers and otherwise checks for the type
         b_size= level==1 and self.module.get_byte_size(expr.type_) or options.PTR_SIZE
         
-        if r1==None: r1=self.compile_expr(expr.listarrsize_[level-1].expr_)
+        if r1==None: r1=self.compile_expr(expr.listarrsize_[len(expr.listarrsize_)-level].expr_)
         if size==None: size=self.compile_array_size(b_size,r1)
 
         if level==1:
@@ -441,7 +441,7 @@ class function():
             self.emit ('%s = alloca i32'% (var_0))
             self.emit('store i32 0, i32* %s' % (var_0))
             
-            r2=self.compile_expr(expr.listarrsize_[level-1].expr_)
+            r2=self.compile_expr(expr.listarrsize_[len(expr.listarrsize_)-level-1].expr_)
             
             e=self.inf.getinfer(expr)
             e.level_=-1

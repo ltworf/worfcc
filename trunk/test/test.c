@@ -27,9 +27,10 @@ int main() {
     j++;
   }
   
-  for (double[] x : matrix)
+  for (double[] x : matrix) {
+      printString("==");
     for (double y : x)
       printDouble(y);
-
+  }
   return 0 ;
 }
