@@ -9,10 +9,10 @@ int main() {
   /*printInt(length(fromTo(1,50)));
   printInt(length2(fromTo(1,100)));*/
   
-  list a;
+  list a=new list;
   a=(list)null;
 
-  list b=a->next;
+  list c=a->next;
   return 0;
 }
 

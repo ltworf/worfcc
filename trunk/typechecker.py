@@ -343,9 +343,13 @@ def infer(expr,contx,t_inf):
         return t_inf.putinfer(expr,cpp.Absyn.Typebool())
     elif isinstance(expr,cpp.Absyn.Estrng):
         return t_inf.putinfer(expr,cpp.Absyn.Typestrng())
+    elif isinstance(expr,cpp.Absyn.EnewP):
+        return t_inf.putinfer(expr,expr.type_)
     elif isinstance(expr,cpp.Absyn.Enew):
+        
         q=cpp.Absyn.Typearray(expr.type_)
         q.level_=len(expr.listarrsize_)
+        
         for i in expr.listarrsize_:
             inf=infer(i.expr_,contx,t_inf)
             if not isinstance(inf,cpp.Absyn.Typeint):
@@ -411,8 +415,6 @@ def infer(expr,contx,t_inf):
             if i.cident_==expr.cident_: #Found the right field
                 return t_inf.putinfer(expr,i.type_)
         err.error("Field %s is not present in the struct %s" % (expr.cident_,struct.cident_),contx)
-        #    .           StrctElm            ::= Type CIdent ";";
-        #.             Expr16              ::= Expr15 "->" CIdent;
     #Vars
     elif isinstance(expr,cpp.Absyn.Eitm):
         return t_inf.putinfer(expr,contx.get(expr.cident_))

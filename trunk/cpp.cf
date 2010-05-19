@@ -68,7 +68,8 @@ ArrSize.            ArrSize             ::= "[" Expr "]";
 
 
 Enew.               Expr16              ::= "new" Type [ArrSize];
-EnewP.              Expr16              ::= "new" CIdent;
+EnewP.              Expr16              ::= "new" Type;
+
 Eprop.              Expr16              ::= Expr15 "." CIdent;
 Ederef.             Expr16              ::= Expr15 "->" CIdent;
 Eint.               Expr16              ::= Integer;
