@@ -45,4 +45,7 @@ def printabletype(ty):
             t+='[]'
     elif isinstance(ty,cpp.Absyn.Typecustom):
         t=ty.cident_
-    return t
+    try:
+        return t
+    except:
+        print "UNKNOWN TYPE: %s" % ty

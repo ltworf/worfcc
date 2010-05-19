@@ -27,9 +27,37 @@ import java_cup
 import err
 import inferred
 import options
+import cfold
+import os.path
 
 builtins=("printInt","printDouble","printString","readInt","readDouble") #"printBool"
 
+def load_jl_module(filename):
+    '''Loads a javalette module and returns its tree'''
+    try:
+        lexer =  cpp.Yylex(java.io.FileReader(filename));
+        parser=cpp.parser(lexer)
+        res=parser.parse()
+        prog=res.value
+    except:
+        print >> sys.stderr,"ERROR\nSYNTAX ERROR"
+        print >> sys.stderr,"In file ",filename
+        print >> sys.stderr,"At line ",lexer.line_num()
+        print >> sys.stderr,"near ", lexer.buff()
+        raise Exception("SYNTAX ERROR")
+    return prog
+
+def rec_imports(start,base,j_modules):
+    '''Perform recoursive imports'''
+    for k in start.listimport_: #Iterates the imports
+        i=k.cident_
+        if i not in j_modules:
+            j_modules[i]=load_jl_module( '%s/%s.jl' % (base,i))
+            print "importing %s" % '%s/%s.jl' % (base,i)
+            #Recoursive import for the imported module
+            rec_imports(j_modules[i],base,j_modules)
+
+    return j_modules
 def checkfile(filename):
     '''Typechecking for a file
     filename            file to typecheck
@@ -38,21 +66,32 @@ def checkfile(filename):
     t_inf=inferred.inferred()
     gcont=context.GeneralContext("Declaration")      #Initializing the general context, will automatically have an empty context
     builtin(gcont)  #Adds built-in definitions
-    try:
-        lexer =  cpp.Yylex(java.io.FileReader(filename));
-        parser=cpp.parser(lexer)
-        res=parser.parse()
-        prog=res.value
-    except:
-        print >> sys.stderr,"ERROR\nSYNTAX ERROR"
-        print >> sys.stderr,"At line ",lexer.line_num()
-        print >> sys.stderr,"near ", lexer.buff()
-        raise Exception("SYNTAX ERROR")
+    
+    #Load the initial modules
+    prog=load_jl_module(filename)
+    
+    
+    #Load the other modules
+    j_modules=rec_imports(prog,os.path.dirname(filename),{os.path.basename(filename.replace('.jl','')):prog})
+    
+    print j_modules
+    #Create an empty prog
+    prog=cpp.Absyn.Program(None,cpp.Absyn.ListDeclaration())
     
     #Performs constant folding
-    if options.improvementLevel>1:
-        import cfold
-        cfold.fold(prog)
+    cfold.j_modules=j_modules
+    for i in j_modules:
+        cfold.current_module=i
+        cfold.fold(j_modules[i])
+    
+    #Rename functions
+    for j in j_modules:
+        for i in j_modules[j].listdeclaration_:
+            if isinstance(i,cpp.Absyn.Fnct) and not i.cident_=='main':
+                i.cident_='___ext___%s___%s_' % (j,i.cident_)
+            prog.listdeclaration_.add(i)
+    
+    print len(prog.listdeclaration_)
     
     #Adding all the functions to the context, because their definition doesn't have to be before their 1st call
     for i in prog.listdeclaration_:

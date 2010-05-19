@@ -21,6 +21,8 @@
 
 improvementLevel=1
 warningLevel=0
-target="llvm"
+target="llvm" #Default target arch
+
+'___ext___%s___%s_'
 
 PTR_SIZE=8

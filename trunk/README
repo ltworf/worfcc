@@ -13,7 +13,6 @@ The rest is self-contained
 Options:
 Standard GNU command line behavior
     -w LEVEL    Can be used to print extra warnings (will make the testsuite fail)
-    -O LEVEL    Optimization level, on LLVM target only enables or disables constant folding
 
 Conflicts:
     Can't parse declarations like mytype[] a;
