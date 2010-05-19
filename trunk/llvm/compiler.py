@@ -128,8 +128,10 @@ class module():
                 a.level_=type_.level_-1
                 t=self.get_size(a)
             return '{i32,[ 0 x %s ]}*' % t
-        else: #/TODO REMOVE THIS!!!
-            return 'i32*'
+        elif isinstance(type_,cpp.Absyn.Typecustom):
+            return '%%%s' % type_.cident_
+        else: #In normal conditions this branch should never be reached
+            raise Exception("Unknown type")
     
 class function():
     def __init__(self,f,contx,inf,mname,module):
@@ -225,7 +227,7 @@ class function():
         return '%%v_%d' % self.var_name
         
     def __get_zero__(self,type_,num='0'):
-        if isinstance(type_,cpp.Absyn.Typearray):
+        if isinstance(type_,cpp.Absyn.Typearray) or isinstance(type_,cpp.Absyn.Typecustom):
             return None
         elif isinstance(type_,cpp.Absyn.Typedouble):
             return '%s.0' % num
@@ -349,8 +351,12 @@ class function():
                     if isinstance(j,cpp.Absyn.VarNA):
                         #Inits the var to 0
                         zero=self.__get_zero__(i.type_)
-                        if zero!=None:
-                            self.emit('store %s %s, %s* %s' % (size,zero,size,var))
+                        if zero==None:#Emitting a cast to pointer
+                            zero='%%t%d' % self.get_register_id()
+                            self.emit('%s = inttoptr i8 0 to %s'%(zero,size))
+                            #self.emit('store %s %s, %s* %s' % (size,zero,size,var))
+                            
+                        self.emit('store %s %s, %s* %s' % (size,zero,size,var))
                     elif isinstance(j,cpp.Absyn.VarVA):
                         r1=self.compile_expr(j.expr_)
                         self.emit('store %s %s, %s* %s' % (size,r1,size,var))

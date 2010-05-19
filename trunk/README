@@ -21,9 +21,9 @@ Expressions:
     a++ and the rest are expressions and return a value
     a=1 is an expression and returns a value
 
-Cycles:
+Loops:
     Foreach:
-        for (int x:a)                       As requested by array extension
+        for (int x:a)                       As requested by array extension, a is NOT saved in a temp var
     For:
         for (int a=0,b=1;a<max;b--,a++)
         for (a=0,b=1;d=a,a<max;b--,a++)
@@ -32,9 +32,10 @@ Cycles:
         while
     Other:
         break       exits the inner loop
-        continue    continues with the next iteration of the loop skipping the rest
+        continue    continues with the next iteration of the inner loop skipping the rest
     
 Array:
     a[1]++ works    (a must be int[], not covered in the testsuite)
     
-    ArrayB: Could not test on chalmers due to old libstdc++ library, the array003 works fine on my computer anyway
+    ArrayB: Doesn't work on chalmers due to different arch, array003 works on my computer (x86_64) anyway
+
