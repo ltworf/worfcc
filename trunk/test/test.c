@@ -9,15 +9,18 @@ int main() {
   /*printInt(length(fromTo(1,50)));
   printInt(length2(fromTo(1,100)));*/
   
-  list a;
+  list a=new Node;
+  //int[] b=new int[1];
+  
   
   return 0;
 }
 
-/*int head (list xs) {
+int head (list xs) {
   return xs -> elem;
 }
- 
+
+/*
 list cons (int x, list xs) {
   list n;
   n = new Node;

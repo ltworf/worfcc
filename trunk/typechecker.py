@@ -344,7 +344,19 @@ def infer(expr,contx,t_inf):
     elif isinstance(expr,cpp.Absyn.Estrng):
         return t_inf.putinfer(expr,cpp.Absyn.Typestrng())
     elif isinstance(expr,cpp.Absyn.EnewP):
-        return t_inf.putinfer(expr,expr.type_)
+        if not isinstance(expr.type_,cpp.Absyn.Typecustom):
+            err.error("Cannot allocate default type %s on heap, try using a struct instead" % err.printabletype(expr.type_),contx)
+        struct=contx.get(expr.type_.cident_) #Just to check that the struct exists
+        if not isinstance(struct,cpp.Absyn.Strct):
+            err.error("%s is not a struct"%expr.type_.cident_,contx)
+        
+        #Need to find the typedef related to the struct
+        for i in contx.contexts[0].table.values():
+            if isinstance(i,cpp.Absyn.Typedef) and i.cident_1 == expr.type_.cident_:
+                return t_inf.putinfer(expr,cpp.Absyn.Typecustom(i.cident_2))
+         
+        err.error("Missing typedef for struct %s", expr.type_.cident_ ,contx)
+        
     elif isinstance(expr,cpp.Absyn.Enew):
         
         q=cpp.Absyn.Typearray(expr.type_)

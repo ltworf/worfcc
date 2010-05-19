@@ -28,11 +28,34 @@ import os.path
 import options
 import lcontext
 
+
+def get_type_def(type_):
+        if isinstance(type_,cpp.Absyn.Typeint):
+            return 'i32'
+        elif isinstance(type_,cpp.Absyn.Typebool):
+            return 'i1'
+        elif isinstance(type_,cpp.Absyn.Typestrng):
+            return 'i8*'
+        elif isinstance(type_,cpp.Absyn.Typedouble):
+            return 'double'
+        elif isinstance(type_,cpp.Absyn.Typevoid):
+            return 'void'
+        elif isinstance(type_,cpp.Absyn.Typearray):
+            if type_.level_<=1: #Can be 0 only to avoid extra code somewhere else, but the result will be ignored
+                t=get_type_def(type_.type_)
+            else:
+                a=cpp.Absyn.Typearray(type_.type_)
+                a.level_=type_.level_-1
+                t=get_type_def(a)
+            return '{i32,[ 0 x %s ]}*' % t
+        elif isinstance(type_,cpp.Absyn.Typecustom):
+            return '%%%s' % type_.cident_
+        else: #In normal conditions this branch should never be reached
+            raise Exception("Unknown type")
+
 def llvm_compile(filename):
     '''Compiles the program into LLVM assembly'''
     prog,contx,inf=typechecker.checkfile(filename)
-    
-    
     
     #Gets the name of the module
     mname='.'.join(os.path.basename(filename).split('.')[:-1])
@@ -77,7 +100,17 @@ class module():
                 c=function(i,contx,inf,mname,self)
                 for j in c.code:
                     self.code.append(j)
-        
+            elif isinstance(i,cpp.Absyn.Typedef):
+                #Emits a custom type definition
+                '''StrctElm.           StrctElm            ::= Type CIdent ";";
+                Strct.              Declaration         ::= "struct" CIdent "{" [StrctElm] "}" ";";
+                Typedef.            Declaration         ::= "typedef" "struct" CIdent "*" CIdent ";"; '''
+                ltypes=[]
+                for k in contx.get(i.cident_1).liststrctelm_:
+                    ltypes.append(get_type_def(k.type_))
+                self.code.append('%%%s = type {%s}*' % (i.cident_2,','.join(ltypes)))
+            
+            #   %arr1 = type {i32,%arr2}*
         
         #Adding consts in the header
         for i in self.const:
@@ -108,30 +141,6 @@ class module():
             return 'void' #//TODO
         else: #/TODO REMOVE THIS!!!
             return 'i32*' #//TODO
-            
-    def get_size(self,type_):
-        if isinstance(type_,cpp.Absyn.Typeint):
-            return 'i32'
-        elif isinstance(type_,cpp.Absyn.Typebool):
-            return 'i1'
-        elif isinstance(type_,cpp.Absyn.Typestrng):
-            return 'i8*'
-        elif isinstance(type_,cpp.Absyn.Typedouble):
-            return 'double'
-        elif isinstance(type_,cpp.Absyn.Typevoid):
-            return 'void'
-        elif isinstance(type_,cpp.Absyn.Typearray):
-            if type_.level_<=1: #Can be 0 only to avoid extra code somewhere else, but the result will be ignored
-                t=self.get_size(type_.type_)
-            else:
-                a=cpp.Absyn.Typearray(type_.type_)
-                a.level_=type_.level_-1
-                t=self.get_size(a)
-            return '{i32,[ 0 x %s ]}*' % t
-        elif isinstance(type_,cpp.Absyn.Typecustom):
-            return '%%%s' % type_.cident_
-        else: #In normal conditions this branch should never be reached
-            raise Exception("Unknown type")
     
 class function():
     def __init__(self,f,contx,inf,mname,module):
@@ -184,13 +193,13 @@ class function():
         args=[]
         par=0
         for i in f.listargument_:
-            size=module.get_size(i.type_)
+            size=get_type_def(i.type_)
             p='%%par_%d' % par
             args.insert(0,'%s %s' % (size,p))
             par+=1
         params=','.join(args)
         
-        self.emit("define %s @%s(%s) {" % (self.module.get_size(f.type_),f.cident_,params))
+        self.emit("define %s @%s(%s) {" % (get_type_def(f.type_),f.cident_,params))
         
         self.emit("entry:")
         
@@ -262,7 +271,7 @@ class function():
                 self.emit('ret void')
             elif isinstance(i,cpp.Absyn.Return):
                 r1=self.compile_expr(i.expr_)
-                self.emit('ret %s %s' % (self.module.get_size( self.inf.getinfer(i.expr_)),r1))
+                self.emit('ret %s %s' % (get_type_def( self.inf.getinfer(i.expr_)),r1))
             elif isinstance(i,cpp.Absyn.Block):
                 self.compile_block(i.liststatement_)
             elif isinstance(i,cpp.Absyn.If) or isinstance(i,cpp.Absyn.IfElse):
@@ -341,7 +350,7 @@ class function():
                 self.breaklabel=oldbreaklabel
                 self.continuelabel=oldcontinuelabel
             elif isinstance(i,cpp.Absyn.LocalVars):
-                size=self.module.get_size(i.type_)
+                size=get_type_def(i.type_)
                 for j in i.listvitem_:
                     var=level_string(self.get_var_name())
                     if isinstance(i.type_,cpp.Absyn.Typearray):
@@ -376,7 +385,7 @@ class function():
         #So i have to recreate it
         t_a=cpp.Absyn.Typearray(self.inf.getinfer(expr))
         t_a.level_=self.var_contx.get(expr.cident_).level #len(expr.listarrsize_)
-        expr_size=self.module.get_size(t_a)
+        expr_size=get_type_def(t_a)
         
         var=self.var_contx.get(expr.cident_)
         
@@ -392,7 +401,7 @@ class function():
             
             #Reduces size for the next iteration
             t_a.level_-=1
-            expr_size=self.module.get_size(t_a)
+            expr_size=get_type_def(t_a)
             
         return id_
     
@@ -421,7 +430,7 @@ class function():
         return id_2
     
     def compile_new(self,expr,level,size=None,expr_size=None,r1=None):
-        if expr_size==None: expr_size=self.module.get_size( self.inf.getinfer(expr))
+        if expr_size==None: expr_size=get_type_def( self.inf.getinfer(expr))
         
         #Item size is 8 for pointers and otherwise checks for the type
         b_size= level==1 and self.module.get_byte_size(expr.type_) or options.PTR_SIZE
@@ -452,7 +461,7 @@ class function():
             
             e=self.inf.getinfer(expr)
             e.level_=-1
-            expr_size_=self.module.get_size(e)
+            expr_size_=get_type_def(e)
             
             b_size= level-1==1 and self.module.get_byte_size(expr.type_) or 4
             size_=self.compile_array_size(b_size,r2)
@@ -502,10 +511,10 @@ class function():
         '''
         
         id_='%%t%d' % self.get_register_id()
-        expr_size=self.module.get_size( self.inf.getinfer(expr))
+        expr_size=get_type_def( self.inf.getinfer(expr))
         
         if isinstance(expr,cpp.Absyn.Eint):
-            #self.emit('%s = add %s 0 , %d' % (id_,self.module.get_size( self.inf.getinfer(expr)),expr.integer_))
+            #self.emit('%s = add %s 0 , %d' % (id_,get_type_def( self.inf.getinfer(expr)),expr.integer_))
             return str(expr.integer_)
         elif isinstance(expr,cpp.Absyn.Edbl):
             return str(expr.double_)
@@ -517,16 +526,25 @@ class function():
         elif isinstance(expr,cpp.Absyn.Estrng):
             handle=self.module.add_constant(expr.string_)
             self.emit('%s = bitcast [%d x i8]* %s to i8*' % (id_,len(expr.string_)+1,handle))
-        #New
+        #New array
         elif isinstance(expr,cpp.Absyn.Enew):
             return self.compile_new(expr,len(expr.listarrsize_))
+        #New struct
+        elif isinstance(expr,cpp.Absyn.EnewP):
+            id_2='%%t%d' % self.get_register_id()
+            
+            struct=self.contx.get(expr.type_.cident_)
+            size=len(struct.liststrctelm_)*8 #I know it's a waste of memory, but this way i should be reasonably safe with paddings
+            
+            self.emit('%s = call noalias i8* @calloc(i32 %s,i32 1) nounwind' % (id_2,size))
+            self.emit('%s = bitcast i8* %s to %s' % (id_,id_2,expr_size))
         #Property
         elif isinstance(expr,cpp.Absyn.Eprop):
             
             #We only have one prop so it's safe to assume it's length
             r1=self.compile_expr(expr.expr_)
             id_2='%%t%d' % self.get_register_id()
-            self.emit('%s = getelementptr %s %s, i32 0, i32 0' %(id_2,self.module.get_size( self.inf.getinfer(expr.expr_)) ,r1))
+            self.emit('%s = getelementptr %s %s, i32 0, i32 0' %(id_2,get_type_def( self.inf.getinfer(expr.expr_)) ,r1))
             self.emit('%s = load i32* %s'%(id_,id_2))
             
         #Arithmetic instructions
@@ -556,7 +574,7 @@ class function():
             else:
                 int_or_float='i'
             
-            type_=self.module.get_size(self.inf.getinfer(expr.expr_1))
+            type_=get_type_def(self.inf.getinfer(expr.expr_1))
             
             self.emit('%s = %ccmp %s %s %s , %s'%(id_,int_or_float,op,type_,r1,r2))
         #Variable
@@ -603,7 +621,7 @@ class function():
             parlist=[]
             for i in expr.listexpr_:
                 r=self.compile_expr(i)
-                size=self.module.get_size( self.inf.getinfer(i))
+                size=get_type_def( self.inf.getinfer(i))
                 parlist.insert(0,'%s %s'% (size,r))
             
             params=','.join(parlist)
