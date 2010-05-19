@@ -6,7 +6,7 @@ comment "#";    --Stripping out preprocessor stuff. This will make it just not w
 position token CIdent (letter | '_') (letter | digit | '_')*;       --Identifiers start with letter or '_' and then can have numbers too.
 
 
-Program.            Program             ::= [Declaration];
+Program.            Program             ::= [Import] [Declaration];
 TrueLit.            Bool                ::= "true";    --Naming it boolean it won't compile
 FalseLit.           Bool                ::= "false";
 Typestrng.          Type                ::= "string";    --Maybe someone will not like this?
@@ -19,6 +19,11 @@ Typecustom.         Type                ::= CIdent; --I know i will regret this
 
 [].                 [Declaration]       ::= ;--Allow empty declaration list
 (:).                [Declaration]       ::= Declaration [Declaration];
+
+[].                 [Import]            ::= ;--Allow empty import list
+(:).                [Import]            ::= Import [Import];
+
+
 [].                 [Statement]         ::= ; --Allow empty statement list
 (:).                [Statement]         ::= Statement [Statement];
 
@@ -31,7 +36,7 @@ StrctElm.           StrctElm            ::= Type CIdent ";";
 (:[]).              [StrctElm]          ::= StrctElm;
 (:).                [StrctElm]          ::= StrctElm [StrctElm];
 
-
+Import.             Import              ::= "import" CIdent ";";
 Strct.              Declaration         ::= "struct" CIdent "{" [StrctElm] "}" ";";
 Typedef.            Declaration         ::= "typedef" "struct" CIdent "*" CIdent ";";           --Forces typedef to apply only to structs, not really C like i know...
 
@@ -70,7 +75,7 @@ ArrSize.            ArrSize             ::= "[" Expr "]";
 Enew.               Expr16              ::= "new" Type [ArrSize];
 EnewP.              Expr16              ::= "new" Type;
 
-Eprop.              Expr16              ::= Expr15 "." CIdent;
+
 Ederef.             Expr16              ::= Expr15 "->" CIdent;
 Eint.               Expr16              ::= Integer;
 Edbl.               Expr16              ::= Double;
@@ -79,7 +84,13 @@ Estrng.             Expr16              ::= String;
 Eitm.               Expr16              ::= CIdent;
 Enull.              Expr16              ::= "(" CIdent ")" "null";
 Eaitm.              Expr16              ::= CIdent[ArrSize];
+
 Efun.               Expr15              ::= CIdent "(" [Expr] ")";
+
+PrsYes.             Prs                 ::= "(" [Expr] ")";
+PrsNo.              Prs                 ::= ;
+
+Eprop.              Expr16              ::= Expr15 "." CIdent Prs;
 Eainc.              Expr14              ::= Expr15 "++";
 Eadec.              Expr14              ::= Expr15 "--";
 Epinc.              Expr13              ::= "++" Expr14;
