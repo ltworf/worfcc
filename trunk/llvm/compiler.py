@@ -197,7 +197,7 @@ class function():
         for i in f.listargument_:
             size=get_type_def(i.type_)
             p='%%par_%d' % par
-            args.insert(0,'%s %s' % (size,p))
+            args.append('%s %s' % (size,p))
             par+=1
         params=','.join(args)
         
@@ -208,6 +208,8 @@ class function():
         #Puts params to the stack //TODO add code for arrays
         par=0
         for i in f.listargument_:
+            size=get_type_def(i.type_)
+            
             var=level_string(self.get_var_name())
             if isinstance(i.type_,cpp.Absyn.Typearray):
                 var.level=i.type_.level_
@@ -501,13 +503,11 @@ class function():
             arr_ptr=self.compile_new(expr,level-1,size_,expr_size_,r2)
             e.level_=+1 #Restore the level
             
-            
             #ret mem to my array
             #arr_ptr mem to child array
             #id_1 index
             self.emit ('%s = getelementptr %s %s, i32 0, i32 1, i32 %s' % (id_5,expr_size,ret,id_1))
             self.emit ('store %s %s, %s* %s'% (expr_size_,arr_ptr,expr_size_,id_5))
-            
             
             #Increases index by 1
             self.emit('%s = add i32 1 , %s' % (id_2,id_1))
@@ -525,8 +525,7 @@ class function():
             return ret
     
     def compile_expr(self,expr,r_reg=False):
-        '''
-        If reg is set to true, the return will be a tuple of
+        '''If reg is set to true, the return will be a tuple of
         (%register_with_result,%var_location)
         it works only if expr is Eitm or Eaitm
         '''
@@ -667,7 +666,7 @@ class function():
             for i in expr.listexpr_:
                 r=self.compile_expr(i)
                 size=get_type_def( self.inf.getinfer(i))
-                parlist.insert(0,'%s %s'% (size,r))
+                parlist.append('%s %s'% (size,r))
             
             params=','.join(parlist)
             

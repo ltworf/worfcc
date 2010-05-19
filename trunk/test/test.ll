@@ -7,13 +7,13 @@ declare noalias i8* @calloc(i32,i32) nounwind
 %list = type {i32,%list}*
 define i32 @main() {
 entry:
-call void @p2 (double 2.0,i32 2)
+call void @p2 (i32 2,double 2.0)
 ret i32 0
 }
-define void @p2(double %par_1,i32 %par_0) {
+define void @p2(i32 %par_0,double %par_1) {
 entry:
-%v_0 = alloca double
-store double %par_0, double* %v_0
+%v_0 = alloca i32
+store i32 %par_0, i32* %v_0
 %v_1 = alloca double
 store double %par_1, double* %v_1
 %t1 = load i32* %v_0
