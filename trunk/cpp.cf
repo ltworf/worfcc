@@ -15,15 +15,26 @@ Typedouble.         Type                ::= "double";
 Typeint.            Type                ::= "int";
 Typevoid.           Type                ::= "void";
 Typearray.          Type                ::= Type "[" "]";
+Typecustom.         Type                ::= CIdent; --I know i will regret this
 
 [].                 [Declaration]       ::= ;--Allow empty declaration list
 (:).                [Declaration]       ::= Declaration [Declaration];
 [].                 [Statement]         ::= ; --Allow empty statement list
 (:).                [Statement]         ::= Statement [Statement];
+
 Argument.           Argument            ::= Type CIdent;
 [].                 [Argument]          ::= ; --3 rules to have no arguments, and having the ending argument without the ','
 (:[]).              [Argument]          ::= Argument;
 (:).                [Argument]          ::= Argument "," [Argument];
+
+StrctElm.           StrctElm            ::= Type CIdent ";";
+(:[]).              [StrctElm]          ::= StrctElm;
+(:).                [StrctElm]          ::= StrctElm [StrctElm];
+
+
+Strct.              Declaration         ::= "struct" CIdent "{" [StrctElm] "}" ";";
+Typedef.            Declaration         ::= "typedef" "struct" CIdent "*" CIdent ";";           --Forces typedef to apply only to structs, not really C like i know...
+
 Fnct.               Declaration         ::= Type CIdent "(" [Argument] ")" "{" [Statement] "}";	--2nd part of function declaration. Splitted for conflicts problems
 VarNA.              VItem               ::= CIdent;
 VarVA.              VItem               ::= CIdent "=" Expr;
@@ -57,12 +68,15 @@ ArrSize.            ArrSize             ::= "[" Expr "]";
 
 
 Enew.               Expr16              ::= "new" Type [ArrSize];
+EnewP.              Expr16              ::= "new" CIdent;
 Eprop.              Expr16              ::= Expr15 "." CIdent;
+Ederef.             Expr16              ::= Expr15 "->" CIdent;
 Eint.               Expr16              ::= Integer;
 Edbl.               Expr16              ::= Double;
 Ebool.              Expr16              ::= Bool;
 Estrng.             Expr16              ::= String;
 Eitm.               Expr16              ::= CIdent;
+Enull.              Expr16              ::= "(" CIdent ")" "null";
 Eaitm.              Expr16              ::= CIdent[ArrSize];
 Efun.               Expr15              ::= CIdent "(" [Expr] ")";
 Eainc.              Expr14              ::= Expr15 "++";

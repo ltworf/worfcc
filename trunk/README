@@ -1,3 +1,5 @@
+
+BUILDING:
 Requirements
 bnfc
 java 1.6
@@ -6,20 +8,32 @@ The rest is self-contained
 
 ./gencode
   Will generate the needed missing classes and run the makefile
-  
-  
-Notes:
+
+Options:
+Standard GNU command line behavior
+    -w LEVEL    Can be used to print extra warnings (will make the testsuite fail)
+    -O LEVEL    Optimization level, on LLVM target only enables or disables constant folding
+
+
+Notes on language:
+Expressions:
+    a++ and the rest are expressions and return a value
+    a=1 is an expression and returns a value
 
 Cycles:
-    for (int x:a)
-    a can be any expression returning a 1-dimension array, will be executed only once
+    Foreach:
+        for (int x:a)                       As requested by array extension
+    For:
+        for (int a=0,b=1;a<max;b--,a++)
+        for (a=0,b=1;d=a,a<max;b--,a++)
+    While:
+        do while
+        while
+    Other:
+        break       exits the inner loop
+        continue    continues with the next iteration of the loop skipping the rest
     
-    for (int a=0,b=1;a<max;b--,a++)
-        
-    do while
-    while
-    break
-    continue
+Array:
+    a[1]++ works    (a must be int[], not covered in the testsuite)
     
-Array: a[1]++ works (not covered in the testsuite)
-Expressions: a=b=1, a=b++; (not required)
+    ArrayB: Could not test on chalmers due to old libstdc++ library, the array003 works fine on my computer anyway

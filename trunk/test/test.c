@@ -1,36 +1,48 @@
+typedef struct Node *list;
+
+struct Node {
+  int elem;
+  list next;
+};
+
+
 int main() {
+  printInt(length(fromTo(1,50)));
+  printInt(length2(fromTo(1,100)));
+  return 0;
+}
 
-  double[] vector = new double[4];
-  double[][] matrix = new double[3][4];
+int head (list xs) {
+  return xs -> elem;
+}
+ 
+list cons (int x, list xs) {
+  list n;
+  n = new Node;
+  n->elem = x;
+  n->next = xs;
+  return n;
+}
 
-  int i=0;
-  while (i<matrix.length) {
-    int j=0;
-    while (j<matrix[0].length) {
-       matrix[i][j] = 5.0;
-       j++;
-    }
-    i++;
+int length (list xs) {
+  if (xs==(list)null)
+    return 0;
+  else
+    return 1 + length (xs->next);
+}
+
+list fromTo (int m, int n) {
+  if (m>n)
+    return (list)null;
+  else 
+    return cons (m,fromTo (m+1,n));
+}
+
+int length2 (list xs) {
+  int res = 0;
+  while (xs != (list)null) {
+    res++;
+    xs = xs->next;
   }
-
-  i=0;
-  while (i<vector.length-1) {
-     vector[i] = 3.0;
-     i++;
-  }
-
-  matrix[0] = vector; 
-
-  int j = 0;
-  while (j<vector.length) {
-    matrix[1][j] = vector[j]+1.0;
-    j++;
-  }
-  
-  for (double[] x : matrix) {
-      printString("==");
-    for (double y : x)
-      printDouble(y);
-  }
-  return 0 ;
+  return res;
 }
