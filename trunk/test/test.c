@@ -1,21 +1,17 @@
 /* */
-typedef struct Node *list;
-
-struct Node {
-  int elem;
-  list next;
-};
-
-
 int main() {
-  cons(1+1+1+1+1+1+1,(list)null)->elem;
-  return 0;
-}
 
-list cons (int x, list xs) {
-  list n;
-  n = new Node;
-  n->elem = x;
-  n->next = xs;
-  return n;
+  int[] a = new int[10];
+  int j=0;
+  while (j<a.length) {
+     a[j] = j;
+     j++;
+  }
+
+  for (int x : a) 
+     printInt(x);
+
+  int x = 45;
+  printInt(x);
+  return 0;
 }

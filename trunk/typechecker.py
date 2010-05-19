@@ -176,7 +176,7 @@ def for_each_to_while(s):
     #Creating while condition
     #index<a.length
     e_index=cpp.Absyn.Eitm(ind_name) #Expression with index name
-    a_prop=cpp.Absyn.Eprop(s.expr_,'length') #array.length
+    a_prop=cpp.Absyn.Eprop(s.expr_,'length',cpp.Absyn.PrsNo()) #array.length
     expr= cpp.Absyn.Elt(e_index,a_prop)
     
     #Creating while body
