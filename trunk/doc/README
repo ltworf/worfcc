@@ -17,6 +17,14 @@ Standard GNU command line behavior
 Conflicts:
     Can't parse declarations like mytype[] a;
 
+
+Extensions:
+    arrays1
+    arrays2
+    pointers
+    modules
+    C-like for loop, with break and continue (i sent an email to the prof about it)
+
 Notes on language:
 Expressions:
     a++ and the rest are expressions and return a value
@@ -38,7 +46,11 @@ Loops:
 Array:
     a[1]++ works    (a must be int[], not covered in the testsuite)
     
-    ArrayB: Doesn't work on chalmers due to different arch, array003 works on my computer (x86_64) anyway
 
 Pointers:
     a->val++ works
+
+Modules:
+    The testsuite has a missing return statement
+    To compile the non-main module i should disable the check on the presence of the main function, but then one of the bad tests would fail.
+    Also making it generate one .ll file for each module would be possible, but then the linker should link all the files together.
