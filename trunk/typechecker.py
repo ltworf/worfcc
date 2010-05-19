@@ -494,7 +494,7 @@ def infer(expr,contx,t_inf):
 
     #Assigment
     elif isinstance(expr,cpp.Absyn.Eass):
-        if not (isinstance(expr.expr_1,cpp.Absyn.Eitm) or isinstance(expr.expr_1,cpp.Absyn.Eaitm)):
+        if expr.expr_1.__class__ not in (cpp.Absyn.Eitm,cpp.Absyn.Eaitm,cpp.Absyn.Ederef):
             err.error("Can't assign expression to expression",contx)
         
         inf_1=infer(expr.expr_2,contx,t_inf) #Infer right side expression

@@ -151,6 +151,8 @@ class function():
         
         self.comparisons= {# Dictionary to compile operations with comparisons
             cpp.Absyn.Typebool: {cpp.Absyn.Eeql:'eq',cpp.Absyn.Edif:'ne'},
+            cpp.Absyn.Typecustom: {cpp.Absyn.Eeql:'eq',cpp.Absyn.Edif:'ne'},
+            cpp.Absyn.Typearray: {cpp.Absyn.Eeql:'eq',cpp.Absyn.Edif:'ne'},
             cpp.Absyn.Typeint: {cpp.Absyn.Elt :'slt',cpp.Absyn.Egt :'sgt',cpp.Absyn.Eelt:'sle',cpp.Absyn.Eegt:'sge',cpp.Absyn.Eeql:'eq',cpp.Absyn.Edif:'ne'},
             cpp.Absyn.Typedouble: {cpp.Absyn.Elt :'olt',cpp.Absyn.Egt :'ogt',cpp.Absyn.Eelt:'ole',cpp.Absyn.Eegt:'oge',cpp.Absyn.Eeql:'oeq',cpp.Absyn.Edif:'one'},
         }
@@ -375,11 +377,32 @@ class function():
         
         pass
     
+    def compile_struct_access(self,expr):
+        '''Returns an address containing the reference to the
+        struct item.'''
+        id_='%%t%d' % self.get_register_id()
+        r1=self.compile_expr(expr.expr_)
+        type_=self.inf.getinfer(expr.expr_) #Expression type, hopefully it is a Typecustom
+        expr_size=get_type_def(type_)
+        
+        
+        #Find the index of the field
+        typedef=self.contx.get(type_.cident_)
+        struct=self.contx.get(typedef.cident_1)
+        
+        #StrctElm.           StrctElm            ::= Type CIdent ";";
+        for i in range(len(struct.liststrctelm_)):
+            if struct.liststrctelm_[i].cident_==expr.cident_:
+                index_=i
+                break
+        
+        
+        self.emit('%s = getelementptr %s %s, i32 0, i32 %s' % (id_,expr_size,r1,index_))
+        return id_
+        
     def compile_array_access(self,expr):
         '''Returns an address containing the reference to the
         array item.'''
-        #.              Expr16              ::= CIdent[ArrSize];
-        #ArrSize.            ArrSize             ::= "[" Expr "]";
         
         #Create a new instance of Typearray because it's going to be modified
         #So i have to recreate it
@@ -404,7 +427,7 @@ class function():
             expr_size=get_type_def(t_a)
             
         return id_
-    
+        
     
     def alloc_array(self,size,a_size,expr_size):
         id_='%%t%d' % self.get_register_id()
@@ -485,8 +508,6 @@ class function():
             self.emit ('%s = getelementptr %s %s, i32 0, i32 1, i32 %s' % (id_5,expr_size,ret,id_1))
             self.emit ('store %s %s, %s* %s'% (expr_size_,arr_ptr,expr_size_,id_5))
             
-            #//TODO store in position
-            
             
             #Increases index by 1
             self.emit('%s = add i32 1 , %s' % (id_2,id_1))
@@ -526,6 +547,9 @@ class function():
         elif isinstance(expr,cpp.Absyn.Estrng):
             handle=self.module.add_constant(expr.string_)
             self.emit('%s = bitcast [%d x i8]* %s to i8*' % (id_,len(expr.string_)+1,handle))
+        #Null pointers
+        elif isinstance(expr,cpp.Absyn.Enull):
+            self.emit('%s = inttoptr i8 0 to %s'%(id_,expr_size))
         #New array
         elif isinstance(expr,cpp.Absyn.Enew):
             return self.compile_new(expr,len(expr.listarrsize_))
@@ -576,26 +600,47 @@ class function():
             
             type_=get_type_def(self.inf.getinfer(expr.expr_1))
             
+            if type_.startswith('%'): #Comparing pointers, casting them to integers
+                id_2='%%t%d' % self.get_register_id()
+                id_3='%%t%d' % self.get_register_id()
+                
+                self.emit('%s = ptrtoint %s %s to i64'%(id_2,type_,r1))
+                self.emit('%s = ptrtoint %s %s to i64'%(id_3,type_,r2))
+                
+                r1=id_2
+                r2=id_3
+                type_='i64'
+            
             self.emit('%s = %ccmp %s %s %s , %s'%(id_,int_or_float,op,type_,r1,r2))
         #Variable
         elif isinstance(expr,cpp.Absyn.Eitm):
             var=self.var_contx.get(expr.cident_)
             self.emit('%s = load %s* %s' % (id_,expr_size,var))
             if r_reg: return id_,var
-        elif isinstance(expr,cpp.Absyn.Eaitm):
+        elif isinstance(expr,cpp.Absyn.Eaitm): #Array item
             var=self.compile_array_access(expr)
+            self.emit('%s = load %s* %s' % (id_,expr_size,var))
+            if r_reg: return id_,var
+        elif isinstance(expr,cpp.Absyn.Ederef): #Dereferencing
+            var=self.compile_struct_access(expr)
             self.emit('%s = load %s* %s' % (id_,expr_size,var))
             if r_reg: return id_,var
         #Assignment (as expression, not as statement)
         elif isinstance(expr,cpp.Absyn.Eass):
-            var=self.var_contx.get(expr.expr_1.cident_)
+            
             r1=self.compile_expr(expr.expr_2)
             
             if isinstance(expr.expr_1,cpp.Absyn.Eitm):
+                var=self.var_contx.get(expr.expr_1.cident_)
                 self.emit('store %s %s, %s* %s' % (expr_size,r1,expr_size,var))
-            else:
+            elif isinstance(expr.expr_1,cpp.Absyn.Eaitm):
                 id_2=self.compile_array_access(expr.expr_1)
                 self.emit('store %s %s, %s* %s' %(expr_size,r1,expr_size,id_2))
+            elif isinstance(expr.expr_1,cpp.Absyn.Ederef):
+                id_2=self.compile_struct_access(expr.expr_1)
+                self.emit('store %s %s, %s* %s' %(expr_size,r1,expr_size,id_2))
+            else: #This branch should never be executed
+                raise Exception("Left hand expression not handled")
             return r1
         #Pre and post increment/decrement
         elif isinstance(expr,cpp.Absyn.Eainc):

@@ -8,12 +8,14 @@ struct Node {
 int main() {
   /*printInt(length(fromTo(1,50)));
   printInt(length2(fromTo(1,100)));*/
-  
-  list a=new Node;
-  //int[] b=new int[1];
-  
+  p2(2,2.0);
   
   return 0;
+}
+
+void p2(int a,double b) {
+    printInt(a);
+    printDouble(b);
 }
 
 int head (list xs) {
