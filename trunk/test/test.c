@@ -5,14 +5,18 @@ struct Node {
   list next;
 };
 
-
 int main() {
-  printInt(length(fromTo(1,50)));
-  printInt(length2(fromTo(1,100)));
+  /*printInt(length(fromTo(1,50)));
+  printInt(length2(fromTo(1,100)));*/
+  
+  list a;
+  a=(list)null;
+
+  list b=a->next;
   return 0;
 }
 
-int head (list xs) {
+/*int head (list xs) {
   return xs -> elem;
 }
  
@@ -46,3 +50,4 @@ int length2 (list xs) {
   }
   return res;
 }
+*/

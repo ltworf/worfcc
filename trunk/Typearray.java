@@ -20,7 +20,7 @@ public class Typearray extends Type {
     if (this == o) return true;
     if (o instanceof cpp.Absyn.Typearray) {
       cpp.Absyn.Typearray x = (cpp.Absyn.Typearray)o;
-      return this.type_.equals(x.type_);
+      return this.level_==x.level_ && this.type_.equals(x.type_);
     }
     return false;
   }

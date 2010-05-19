@@ -43,5 +43,6 @@ def printabletype(ty):
         t=printabletype(ty.type_)
         for i in range(ty.level_):
             t+='[]'
-        
+    elif isinstance(ty,cpp.Absyn.Typecustom):
+        t=ty.cident_
     return t

@@ -56,11 +56,16 @@ def checkfile(filename):
     
     #Adding all the functions to the context, because their definition doesn't have to be before their 1st call
     for i in prog.listdeclaration_:
-        gcont.put(i.cident_,i)
+        if isinstance(i,cpp.Absyn.Fnct)or isinstance(i,cpp.Absyn.Strct):
+            gcont.put(i.cident_,i)
+        elif isinstance(i,cpp.Absyn.Typedef):
+            gcont.put(i.cident_2,i)
+
 
     #Typechecking the functions
     for i in prog.listdeclaration_:
-        check_fnct(i,gcont,t_inf)
+        if isinstance(i,cpp.Absyn.Fnct):
+            check_fnct(i,gcont,t_inf)
     
     #Special check for the main function
     main=gcont.get("main")
@@ -110,24 +115,6 @@ def check_const_expr(i,t_inf,contx):
 
 def for_each_to_while(s):
     '''Converts a foreach cycle into a while cycle'''
-    '''ForDecl.            InitFor             ::= Type [VItem];
-    ForExpr.            InitFor             ::= [Expr];
-    For.                Statement           ::= "for" "(" InitFor ";" [Expr] ";" [Expr] ")" Statement;
-    Foreach.            Statement           ::= "for" "(" Type CIdent ":" Expr ")" Statement;
-    
-    (:[]).              [VItem]             ::= VItem;
-    (:).                [VItem]             ::= VItem "," [VItem];
-    ForDecl.            InitFor             ::= Type [VItem];
-    ForExpr.            InitFor             ::= [Expr];
-    
-    VarNA.              VItem               ::= CIdent;
-
-    LocalVars.          Statement           ::= Type [VItem] ";";
-    
-    While.              Statement           ::= "while" "(" Expr ")" Statement;
-
-    '''
-    #
     b1=cpp.Absyn.ListStatement() #Block
     b2=cpp.Absyn.ListStatement() #While body
     
@@ -160,7 +147,7 @@ def for_each_to_while(s):
         t2=cpp.Absyn.ArrSize(e_index)
         t3=cpp.Absyn.ListArrSize()
         t3.add(t2)
-        t4=cpp.Absyn.Eaitm(s.expr_.cident_,t3) #a[__index__++]
+        t4=cpp.Absyn.Eaitm(s.expr_.cident_,t3)
     elif isinstance(s.expr_,cpp.Absyn.Eaitm):
         s.expr_.listarrsize_.add(e_index)
         t4=s.expr_
@@ -173,34 +160,6 @@ def for_each_to_while(s):
     t1=cpp.Absyn.Epinc(e_index) #__index__++
     b2.add(cpp.Absyn.Expression(t1))
     
-    '''ArrSize.            ArrSize             ::= "[" Expr "]";
-(:[]).              [ArrSize]           ::= ArrSize;
-(:).                [ArrSize]           ::= ArrSize [ArrSize];
-Enew.               Expr16              ::= "new" Type [ArrSize];
-Eprop.              Expr16              ::= Expr15 "." CIdent;
-Eint.               Expr16              ::= Integer;
-Edbl.               Expr16              ::= Double;
-Ebool.              Expr16              ::= Bool;
-Estrng.             Expr16              ::= String;
-Eitm.               Expr16              ::= CIdent;
-Eaitm.              Expr16              ::= CIdent[ArrSize];
-Efun.               Expr15              ::= CIdent "(" [Expr] ")";
-Eainc.              Expr14              ::= Expr15 "++";
-ENeg.               Expr12              ::= "-" Expr13 ;
-ENot.               Expr12              ::= "!" Expr13 ;
-Emul.               Expr11              ::= Expr11 "*" Expr12;
-Eadd.               Expr10              ::= Expr10 "+" Expr11;
-Esub.               Expr10              ::= Expr10 "-" Expr11;
-Elt.                Expr9               ::= Expr9 "<" Expr10;
-Egt.                Expr9               ::= Expr9 ">" Expr10;
-Eelt.               Expr9               ::= Expr9 "<=" Expr10;
-Eegt.               Expr9               ::= Expr9 ">=" Expr10;
-Eeql.               Expr8               ::= Expr8 "==" Expr9;
-Edif.               Expr8               ::= Expr8 "!=" Expr9;
-Eand.               Expr4               ::= Expr4 "&&" Expr5;
-Eor.                Expr3               ::= Expr3 "||" Expr4;
-Eass.               Expr2               ::= Expr3 "=" Expr2;'''
-        
     b2.add(s.statement_)
     
     #Creating the while cycle
@@ -223,7 +182,6 @@ def for_to_while(s):
             b1.add(cpp.Absyn.Expression(i))
     elif isinstance(s.initfor_,cpp.Absyn.ForDecl):
         b1.add(cpp.Absyn.LocalVars(s.initfor_.type_,s.initfor_.listvitem_))
-    
     
     if len(s.listexpr_1)>0:
         #Expr of 2nd expression
@@ -302,8 +260,8 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
                 else: #Declaration and assignment
                     q=infer(j.expr_,contx,t_inf)
                     
-                    if q.__class__==i.type_.__class__ and ((not isinstance(i.type_,cpp.Absyn.Typearray)) or (q.__class__ == i.type_.__class__ and q.level_ == i.type_.level_)):
-                            contx.put(j.cident_,i.type_)
+                    if q==i.type_:
+                        contx.put(j.cident_,i.type_)
                     else:
                         err.error("Type mismatch in declaration %s, expected %s got %s"% (j.cident_,err.printabletype(i.type_),err.printabletype(q)),contx)
         elif isinstance(i,cpp.Absyn.Block):     #Block
@@ -374,8 +332,10 @@ def infer(expr,contx,t_inf):
     contx       context'''
     
     #Literals
-    
-    if isinstance(expr,cpp.Absyn.Eint):
+    #Null pointer
+    if isinstance(expr,cpp.Absyn.Enull):
+        return t_inf.putinfer(expr,cpp.Absyn.Typecustom(expr.cident_))
+    elif isinstance(expr,cpp.Absyn.Eint):
         return t_inf.putinfer(expr,cpp.Absyn.Typeint())
     elif isinstance(expr,cpp.Absyn.Edbl):
         return t_inf.putinfer(expr,cpp.Absyn.Typedouble())
@@ -438,11 +398,24 @@ def infer(expr,contx,t_inf):
             return t_inf.putinfer(expr,cpp.Absyn.Typebool())
         else:
             err.error("|| and && are boolean operators, got " + err.printabletype(inf1) +"," + err.printabletype(inf2) + " instead",contx)
-
+    #Dereference
+    elif isinstance(expr,cpp.Absyn.Ederef):
+        inf=infer(expr.expr_,contx,t_inf)
+        if not isinstance(inf,cpp.Absyn.Typecustom):
+            err.error("Only structured types support dereferencing",contx)
+            
+        typedef=contx.get(inf.cident_)
+        struct=contx.get(typedef.cident_1)
+        
+        for i in struct.liststrctelm_:
+            if i.cident_==expr.cident_: #Found the right field
+                return t_inf.putinfer(expr,i.type_)
+        err.error("Field %s is not present in the struct %s" % (expr.cident_,struct.cident_),contx)
+        #    .           StrctElm            ::= Type CIdent ";";
+        #.             Expr16              ::= Expr15 "->" CIdent;
     #Vars
     elif isinstance(expr,cpp.Absyn.Eitm):
         return t_inf.putinfer(expr,contx.get(expr.cident_))
-    
     #-- and ++
     elif isinstance(expr,cpp.Absyn.Eainc) or isinstance(expr,cpp.Absyn.Eadec) or isinstance(expr,cpp.Absyn.Epinc) or isinstance(expr,cpp.Absyn.Epdec):
         inf=infer(expr.expr_,contx,t_inf)
@@ -513,15 +486,15 @@ def infer(expr,contx,t_inf):
         inf_1=infer(expr.expr_2,contx,t_inf) #Infer right side expression
         inf_2=infer(expr.expr_1,contx,t_inf) #Infer left side expression
         
-        #Infer indexes of array
-        
-        if inf_1.__class__==inf_2.__class__ and isinstance(inf_1,cpp.Absyn.Typearray):
+        if inf_1==inf_2:
+            return t_inf.putinfer(expr,inf_1)
+        '''if inf_1.__class__==inf_2.__class__ and isinstance(inf_1,cpp.Absyn.Typearray):
             if (inf_1.type_.__class__==inf_2.type_.__class__ and inf_1.level_==inf_2.level_): #Both are array, checking array type and level
                 return t_inf.putinfer(expr,inf_1)
             else:
                 err.error("Type mismatch in assignment, expected "+ err.printabletype(inf_2)   +" got " + err.printabletype(inf_1),contx)
         if inf_1.__class__==inf_2.__class__:
-            return t_inf.putinfer(expr,inf_1)
+            return t_inf.putinfer(expr,inf_1)'''
         err.error("Type mismatch in assignment, expected "+ err.printabletype(inf_2)   +" got " + err.printabletype(inf_1),contx)
 
 def chk_fnct_call(expr,contx,fnct,t_inf):

@@ -73,9 +73,10 @@ class module():
         self.code=[]
         
         for i in prog.listdeclaration_:
-            c=function(i,contx,inf,mname,self)
-            for j in c.code:
-                self.code.append(j)
+            if isinstance(i,cpp.Absyn.Fnct):
+                c=function(i,contx,inf,mname,self)
+                for j in c.code:
+                    self.code.append(j)
         
         
         #Adding consts in the header
