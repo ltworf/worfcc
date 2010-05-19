@@ -39,3 +39,5 @@ Array:
     
     ArrayB: Doesn't work on chalmers due to different arch, array003 works on my computer (x86_64) anyway
 
+Pointers:
+    a->val++ works

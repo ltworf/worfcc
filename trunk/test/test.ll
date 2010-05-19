@@ -4,30 +4,21 @@ declare void @printString(i8* %s)
 declare i32 @readInt()
 declare double @readDouble()
 declare noalias i8* @calloc(i32,i32) nounwind
-%list = type {i32,%list}*
+%tree = type {%tree,i32,%tree}*
 define i32 @main() {
 entry:
-call void @p2 (i32 2,double 2.0)
+%v_0 = alloca %tree
+%t1 = call noalias i8* @calloc(i32 24,i32 1) nounwind
+%t0 = bitcast i8* %t1 to %tree
+store %tree %t0, %tree* %v_0
+%t5 = load %tree* %v_0
+%t4 = getelementptr %tree %t5, i32 0, i32 1
+%t3 = load i32* %t4
+%t2 = add i32 1 , %t3
+store i32 %t2, i32* %t4
+%t9 = load %tree* %v_0
+%t8 = getelementptr %tree %t9, i32 0, i32 1
+%t7 = load i32* %t8
+call void @printInt (i32 %t7)
 ret i32 0
-}
-define void @p2(i32 %par_0,double %par_1) {
-entry:
-%v_0 = alloca i32
-store i32 %par_0, i32* %v_0
-%v_1 = alloca double
-store double %par_1, double* %v_1
-%t1 = load i32* %v_0
-call void @printInt (i32 %t1)
-%t3 = load double* %v_1
-call void @printDouble (double %t3)
-ret void
-}
-define i32 @head(%list %par_0) {
-entry:
-%v_0 = alloca %list
-store %list %par_0, %list* %v_0
-%t2 = load %list* %v_0
-%t1 = getelementptr %list %t2, i32 0, i32 0
-%t0 = load i32* %t1
-ret i32 %t0
 }

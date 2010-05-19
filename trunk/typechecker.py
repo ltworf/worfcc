@@ -435,7 +435,7 @@ def infer(expr,contx,t_inf):
         inf=infer(expr.expr_,contx,t_inf)
         
         #If the operand is a variable, return its type if it is numeric or raise an error if it is not numeric
-        if (isinstance(expr.expr_,cpp.Absyn.Eitm)or isinstance(expr.expr_,cpp.Absyn.Eaitm)) and isinstance(inf,cpp.Absyn.Typeint):
+        if (expr.expr_.__class__ in (cpp.Absyn.Eitm,cpp.Absyn.Eaitm,cpp.Absyn.Ederef)) and isinstance(inf,cpp.Absyn.Typeint):
             return t_inf.putinfer(expr,inf)
         else:
             err.error("++ and -- require an int variable",contx)
