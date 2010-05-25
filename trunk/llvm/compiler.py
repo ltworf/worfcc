@@ -539,8 +539,12 @@ class function():
         it works only if expr is Eitm or Eaitm
         '''
         
+        #Register for the result of the expression
         id_='%%t%d' % self.get_register_id()
-        expr_size=get_type_def( self.inf.getinfer(expr))
+        
+        if self.inf.getinfer(expr) not in (True,False):
+            expr_size=get_type_def( self.inf.getinfer(expr))
+        
         
         if isinstance(expr,cpp.Absyn.Eint):
             #self.emit('%s = add %s 0 , %d' % (id_,get_type_def( self.inf.getinfer(expr)),expr.integer_))

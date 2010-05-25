@@ -269,6 +269,7 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
     It is not allowed to have statements after a return statement (unreacheable ccode)
     '''
     has_return=False
+    breaks=False
     if new_contx:
         contx.push()
     
@@ -283,6 +284,8 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
         elif isinstance(i,cpp.Absyn.Foreach):
             i=statements[index]=for_each_to_while(i)
 
+        if isinstance(i,cpp.Absyn.Break):
+            breaks=True #Sets this value and will generate error in case of unreacheable code
         if isinstance(i,cpp.Absyn.Return):    #Return with value
             has_return=True
             
@@ -364,8 +367,8 @@ def chk_block(statements,contx,new_contx,return_,t_inf):
                 has_return=has_return1 and has_return2 #Check the instructions in the else
 
         #Disallow statements after the return
-        if has_return and index != len(statements)-1: 
-            err.error("Unreachable code after return",contx)
+        if (has_return or breaks) and index != len(statements)-1: 
+            err.error("Unreachable code after return/break",contx)
             
     if new_contx:
         contx.pop()
