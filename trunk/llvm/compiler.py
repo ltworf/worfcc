@@ -51,6 +51,7 @@ def get_type_def(type_):
         elif isinstance(type_,cpp.Absyn.Typecustom):
             return '%%%s' % type_.cident_
         else: #In normal conditions this branch should never be reached
+            print type_
             raise Exception("Unknown type")
 
 def llvm_compile(filename):

@@ -21,20 +21,16 @@
 import cpp
 
 def fold(prog):
-    print "suca"
     for i in prog.listdeclaration_:
-        print i
         if isinstance(i,cpp.Absyn.Fnct):
             fold_function_declaration(i)
 
 
 def fold_function_declaration(f):
-    print "suca"
     for i in f.liststatement_:
         fold_statement(i)
 
 def fold_statement(s):
-    print "suca"
     '''Folds the expressions contained within the statement and 
     does nothing on the statements without expressions'''
     
@@ -55,6 +51,23 @@ def fold_statement(s):
         for i in s.listvitem_:
             if isinstance(i,cpp.Absyn.VarVA):
                 i.expr_=fold_expression(i.expr_)
+    elif isinstance(s,cpp.Absyn.For):
+        fold_statement(s.statement_)
+        
+        for i in range(len(s.listexpr_1)):
+            s.listexpr_1[i]=fold_expression(s.listexpr_1[i])
+        
+        for i in range(len(s.listexpr_2)):
+            s.listexpr_2[i]=fold_expression(s.listexpr_2[i])
+
+        if isinstance(s.initfor_,cpp.Absyn.ForExpr):
+            for i in range(len(s.initfor_.listexpr_)):
+                s.initfor_.listexpr_[i]=fold_expression(s.initfor_.listexpr_[i])
+        else: #ForDecl
+            for i in s.initfor_.listvitem_:
+                if isinstance (i,cpp.Absyn.VarVA):
+                    i.expr_=fold_expression(i.expr_)
+            
     #For.                Statement           ::= "for" "(" InitFor ";" [Expr] ";" [Expr] ")" Statement;
 
 current_module=None
@@ -62,7 +75,6 @@ j_modules=None
 
 def rewrite_function_name(f):
     '''Determines the new internal name for a function'''
-    
     #main doesn't change
     if f=='main':
         return f
@@ -94,9 +106,7 @@ def fold_expression(e):
     elif e.__class__ in unary:
         e.expr_=fold_expression(e.expr_)
     elif isinstance(e,cpp.Absyn.Efun):
-        print "OLD F NAME %s"% e.cident_
         e.cident_=rewrite_function_name(e.cident_)
-        print "NEW F NAME %s"% e.cident_
         for i in range(len(e.listexpr_)):
             e.listexpr_[i]=fold_expression(e.listexpr_[i])
     
@@ -112,14 +122,6 @@ def fold_expression(e):
             e.expr_=fold_expression(e.expr_)
         if isinstance(e.prs_,cpp.Absyn.PrsYes) and isinstance(e.expr_,cpp.Absyn.Eitm): #Call to external module, converting it
             return fold_expression(cpp.Absyn.Efun('___ext___%s___%s_'% (e.expr_.cident_,e.cident_), e.prs_.listexpr_))
-    '''Efun.               Expr15              ::= CIdent "(" [Expr] ")";
-
-PrsYes.             Prs                 ::= "(" [Expr] ")";
-PrsNo.              Prs                 ::= ;
-
-Eprop.              Expr16              ::= Expr15 "." CIdent Prs;
-.             Expr16              ::= Expr15 "->" CIdent;
-'''
 
     #Tries to solve the tree and return the result
     r=solve_expression(e)

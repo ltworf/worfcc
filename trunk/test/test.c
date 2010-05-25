@@ -1,17 +1,12 @@
 /* */
 int main() {
 
-  int[] a = new int[10];
-  int j=0;
-  while (j<a.length) {
-     a[j] = j;
-     j++;
+  for (int i=1+1+1+1+1+1+1+1;i<4*5;i++) {
+    printInt(1+1+1+f()+1+i);
   }
-
-  for (int x : a) 
-     printInt(x);
-
-  int x = 45;
-  printInt(x);
+  
+  
+  
+  
   return 0;
 }
