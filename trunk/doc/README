@@ -16,7 +16,9 @@ Standard GNU command line behavior
 
 Conflicts:
     Can't parse declarations like mytype[] a;
-
+    To solve dot notations colliding between function calls in external modules and array's length,
+    a single rule is used in both cases and then the parse tree is edited turning the function calls
+    in the appropriate class.
 
 Extensions:
     arrays1
