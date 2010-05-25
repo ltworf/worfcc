@@ -1,12 +1,18 @@
 /* */
 int main() {
 
-  for (int i=1+1+1+1+1+1+1+1;i<4*5;i++) {
-    printInt(1+1+1+f()+1+i);
+for(int i = 0; i < 5; i++) {
+    if(i == 3)
+        continue;
+    printInt(i);
+}
+  
+  int i=0;
+  while (i<5) {
+    if (i==3) continue;
+    printInt(i);
+    i++;
   }
-  
-  
-  
   
   return 0;
 }

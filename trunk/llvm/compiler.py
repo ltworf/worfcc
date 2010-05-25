@@ -262,7 +262,9 @@ class function():
         for instr_id in range(len(statements)):
             i=statements[instr_id]
             
-            if isinstance(i,cpp.Absyn.Expression):
+            if isinstance(i,cpp.Absyn.Marker):
+                self.emit(eval(i.expr_))
+            elif isinstance(i,cpp.Absyn.Expression):
                 self.compile_expr(i.expr_)
             elif isinstance(i,cpp.Absyn.Break):
                 if self.breaklabel!=None:
@@ -301,7 +303,6 @@ class function():
                 #Normal code generation
                 r1=self.compile_expr(i.expr_) #Calculate the expression
                 
-                
                 #Labels
                 l_id=self.module.get_lbl()
                 lbl_if='if_%d' % l_id
@@ -332,6 +333,11 @@ class function():
                 l_id=self.module.get_lbl()
                 lbl_while="while_%d" %l_id
                 self.continuelabel=lbl_expr="expr_%d" %l_id
+                
+                if isinstance(i,cpp.Absyn.While) and i.was_for==True:
+                    self.continuelabel="continue_%d" % l_id
+                
+                
                 self.breaklabel=lbl_endwhile="endwhile_%d" %l_id
                 
                 #A do-while always executes the 1st time

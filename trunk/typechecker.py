@@ -232,10 +232,16 @@ def for_to_while(s):
         e=cpp.Absyn.Ebool(cpp.Absyn.TrueLit())
         
     #While cycle
-    b1.add(cpp.Absyn.While(e,cpp.Absyn.Block(b2)))
+    w_=cpp.Absyn.While(e,cpp.Absyn.Block(b2))
+    w_.was_for=True
+    b1.add(w_)
     
     #Statements
     b2.add(s.statement_)
+    
+    #Marker for the continue
+    b2.add(cpp.Absyn.Marker('"br label %%%s" % self.continuelabel'))
+    b2.add(cpp.Absyn.Marker('"%s:" % self.continuelabel'))
     
     #Expr3
     for i in s.listexpr_2:

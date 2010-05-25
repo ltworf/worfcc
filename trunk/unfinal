@@ -8,6 +8,9 @@ do
 done
 cd ../../
 cp Typearray.java cpp/Absyn
+cp Marker.java cpp/Absyn
+cp While.java cpp/Absyn
+#cp Typearray.java cpp/Absyn
 
 echo Recompiling...
 javac cpp/Absyn/*.java
